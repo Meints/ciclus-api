@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ContractFrequency {
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  YEARLY
+}
+
+enum ContractStatus {
+  ACTIVE
+  ABOUT_TO_EXPIRE
+  EXPIRED
+  CANCELLED
+  PAUSED
+}
+
+enum ServiceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NOT_FOUND
+  RESCHEDULED
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  TECHNICIAN
+}
+
+model Company {
+  id                String   @id @default(uuid())
+  name              String
+  document          String?
+  logoUrl           String?  @map("logo_url")
+  lastServiceNumber Int      @default(0) @map("last_service_number")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  users     User[]
+  customers Customer[]
+  contracts Contract[]
+  services  Service[]
+  auditLogs AuditLog[]
+  employees Employee[]
+
+  @@index([document])
+  @@map("companies")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  companyId    String     @map("company_id")
+  name         String
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  role         UserRole   @default(OWNER)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  auditLogs    AuditLog[]
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@map("users")
+}
+
+model Employee {
+  id        String    @id @default(uuid())
+  companyId String    @map("company_id")
+  name      String
+  email     String?
+  phone     String?
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  services  Service[]
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@map("employees")
+}
+
+model Customer {
+  id        String     @id @default(uuid())
+  companyId String     @map("company_id")
+  name      String
+  email     String?
+  phone     String?
+  document  String?
+  address   String?
+  notes     String?
+  isActive  Boolean    @default(true) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  deletedAt DateTime?  @map("deleted_at")
+  contracts Contract[]
+  services  Service[]
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, email])
+  @@index([companyId])
+  @@index([companyId, name])
+  @@index([companyId, phone])
+  @@index([companyId, document])
+  @@map("customers")
+}
+
+model Contract {
+  id              String            @id @default(uuid())
+  companyId       String            @map("company_id")
+  customerId      String            @map("customer_id")
+  frequency       ContractFrequency
+  amount          Decimal           @db.Decimal(10, 2)
+  startDate       DateTime          @map("start_date")
+  endDate         DateTime          @map("end_date")
+  nextServiceDate DateTime?         @map("next_service_date")
+  status          ContractStatus    @default(ACTIVE)
+  notes           String?
+  renewCounter    Int               @default(0) @map("renew_counter")
+  lastRenewedAt   DateTime?         @map("last_renewed_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  deletedAt       DateTime?         @map("deleted_at")
+  services        Service[]
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, nextServiceDate])
+  @@map("contracts")
+}
+
+model Service {
+  id              String        @id @default(uuid())
+  serviceNumber   Int           @map("service_number")
+  companyId       String        @map("company_id")
+  contractId      String?       @map("contract_id")
+  customerId      String        @map("customer_id")
+  scheduledAt     DateTime      @map("scheduled_at")
+  completedDate   DateTime?     @map("completed_date")
+  status          ServiceStatus @default(SCHEDULED)
+  amount          Decimal?      @db.Decimal(10, 2)
+  isPaid          Boolean       @default(false) @map("is_paid")
+  employeeId      String?       @map("employee_id")
+  notes           String?
+  photos          String[]
+  signatureUrl    String?       @map("signature_url")
+  durationMinutes Int?          @map("duration_minutes")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  deletedAt       DateTime?     @map("deleted_at")
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  contract Contract? @relation(fields: [contractId], references: [id])
+  customer Customer  @relation(fields: [customerId], references: [id])
+  employee Employee? @relation(fields: [employeeId], references: [id])
+
+  @@unique([companyId, serviceNumber])
+  @@index([companyId])
+  @@index([companyId, scheduledAt])
+  @@index([companyId, status])
+  @@map("services")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  companyId  String   @map("company_id")
+  userId     String?  @map("user_id")
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  action     String
+  oldData    Json?    @map("old_data")
+  newData    Json?    @map("new_data")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@index([companyId])
+  @@map("audit_logs")
+}
