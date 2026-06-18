@@ -27,6 +27,7 @@ enum ServiceStatus {
   SCHEDULED
   IN_PROGRESS
   COMPLETED
+  CONFIRMED
   CANCELLED
   NOT_FOUND
   RESCHEDULED
@@ -39,13 +40,22 @@ enum UserRole {
 }
 
 model Company {
-  id                String   @id @default(uuid())
+  id                String    @id @default(uuid())
   name              String
+  fantasyName       String?   @map("fantasy_name")
   document          String?
-  logoUrl           String?  @map("logo_url")
-  lastServiceNumber Int      @default(0) @map("last_service_number")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  email             String?
+  phone             String?
+  niche             String    @default("GENERAL")
+  plan              String    @default("FREE")
+  logoUrl           String?   @map("logo_url")
+  address           Json?
+  isActive          Boolean   @default(true) @map("is_active")
+  dataConsentAt     DateTime? @map("data_consent_at")
+  trialEndsAt       DateTime? @map("trial_ends_at")
+  lastServiceNumber Int       @default(0) @map("last_service_number")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   users     User[]
   customers Customer[]
@@ -59,15 +69,21 @@ model Company {
 }
 
 model User {
-  id           String     @id @default(uuid())
-  companyId    String     @map("company_id")
-  name         String
-  email        String     @unique
-  passwordHash String     @map("password_hash")
-  role         UserRole   @default(OWNER)
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-  auditLogs    AuditLog[]
+  id                    String    @id @default(uuid())
+  companyId             String    @map("company_id")
+  name                  String
+  email                 String    @unique
+  passwordHash          String    @map("password_hash")
+  role                  UserRole  @default(OWNER)
+  isActive              Boolean   @default(true) @map("is_active")
+  lastLoginAt           DateTime? @map("last_login_at")
+  refreshTokenHash      String?   @map("refresh_token_hash")
+  resetPasswordToken    String?   @map("reset_password_token")
+  resetPasswordExpiresAt DateTime? @map("reset_password_expires_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  deletedAt             DateTime? @map("deleted_at")
+  auditLogs             AuditLog[]
 
   company Company @relation(fields: [companyId], references: [id])
 
@@ -94,24 +110,27 @@ model Employee {
 }
 
 model Customer {
-  id        String     @id @default(uuid())
-  companyId String     @map("company_id")
-  name      String
-  email     String?
-  phone     String?
-  document  String?
-  address   String?
-  notes     String?
-  isActive  Boolean    @default(true) @map("is_active")
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
-  deletedAt DateTime?  @map("deleted_at")
-  contracts Contract[]
-  services  Service[]
+  id           String     @id @default(uuid())
+  companyId    String     @map("company_id")
+  name         String
+  fantasyName  String?    @map("fantasy_name")
+  email        String?
+  phone        String?
+  document     String?
+  documentType String     @default("CNPJ") @map("document_type")
+  address      Json?
+  notes        String?
+  isActive     Boolean    @default(true) @map("is_active")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  deletedAt    DateTime?  @map("deleted_at")
+  contracts    Contract[]
+  services     Service[]
+  equipment    Equipment[]
 
   company Company @relation(fields: [companyId], references: [id])
 
-  @@unique([companyId, email])
+  @@unique([companyId, document])
   @@index([companyId])
   @@index([companyId, name])
   @@index([companyId, phone])
@@ -147,24 +166,33 @@ model Contract {
 }
 
 model Service {
-  id              String        @id @default(uuid())
-  serviceNumber   Int           @map("service_number")
-  companyId       String        @map("company_id")
-  contractId      String?       @map("contract_id")
-  customerId      String        @map("customer_id")
-  scheduledAt     DateTime      @map("scheduled_at")
-  completedDate   DateTime?     @map("completed_date")
-  status          ServiceStatus @default(SCHEDULED)
-  amount          Decimal?      @db.Decimal(10, 2)
-  isPaid          Boolean       @default(false) @map("is_paid")
-  employeeId      String?       @map("employee_id")
-  notes           String?
-  photos          String[]
-  signatureUrl    String?       @map("signature_url")
-  durationMinutes Int?          @map("duration_minutes")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-  deletedAt       DateTime?     @map("deleted_at")
+  id                          String        @id @default(uuid())
+  serviceNumber               Int           @map("service_number")
+  companyId                   String        @map("company_id")
+  contractId                  String?       @map("contract_id")
+  customerId                  String        @map("customer_id")
+  serviceType                 String?       @map("service_type")
+  scheduledAt                 DateTime      @map("scheduled_at")
+  completedDate               DateTime?     @map("completed_date")
+  status                      ServiceStatus @default(SCHEDULED)
+  amount                      Decimal?      @db.Decimal(10, 2)
+  isPaid                      Boolean       @default(false) @map("is_paid")
+  employeeId                  String?       @map("employee_id")
+  notes                       String?
+  executionNotes              String?       @map("execution_notes")
+  reportUrl                   String?       @map("report_url")
+  durationMinutes             Int?          @map("duration_minutes")
+  confirmationToken           String?       @unique @map("confirmation_token")
+  confirmationTokenExpiresAt  DateTime?     @map("confirmation_token_expires_at")
+  confirmedAt                 DateTime?     @map("confirmed_at")
+  confirmedIp                 String?       @map("confirmed_ip")
+  confirmedUserAgent          String?       @map("confirmed_user_agent")
+  cancelledReason             String?       @map("cancelled_reason")
+  createdAt                   DateTime      @default(now()) @map("created_at")
+  updatedAt                   DateTime      @updatedAt @map("updated_at")
+  deletedAt                   DateTime?     @map("deleted_at")
+  equipment                   ServiceEquipment[]
+  photos                      ServicePhoto[]
 
   company  Company   @relation(fields: [companyId], references: [id])
   contract Contract? @relation(fields: [contractId], references: [id])
@@ -194,4 +222,55 @@ model AuditLog {
 
   @@index([companyId])
   @@map("audit_logs")
+}
+
+model Equipment {
+  id           String    @id @default(uuid())
+  companyId    String    @map("company_id")
+  customerId   String    @map("customer_id")
+  type         String
+  brand        String?
+  model       String?
+  capacity     String?
+  serialNumber String?   @map("serial_number")
+  location     String?
+  installedAt  DateTime? @map("installed_at")
+  notes        String?
+  isActive     Boolean   @default(true) @map("is_active")
+  deletedAt    DateTime? @map("deleted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  customer         Customer           @relation(fields: [customerId], references: [id])
+  serviceEquipment ServiceEquipment[]
+
+  @@index([companyId])
+  @@index([customerId])
+  @@map("equipment")
+}
+
+model ServiceEquipment {
+  id          String @id @default(uuid())
+  serviceId   String @map("service_id")
+  equipmentId String @map("equipment_id")
+  notes       String?
+
+  service   Service   @relation(fields: [serviceId], references: [id])
+  equipment Equipment @relation(fields: [equipmentId], references: [id])
+
+  @@unique([serviceId, equipmentId])
+  @@map("service_equipment")
+}
+
+model ServicePhoto {
+  id        String   @id @default(uuid())
+  serviceId String   @map("service_id")
+  url       String
+  caption   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@index([serviceId])
+  @@map("service_photos")
 }

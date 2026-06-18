@@ -1,0 +1,65 @@
+import type { FastifyInstance } from "fastify";
+import { authorize } from "../../middleware/authorize";
+import * as servicesController from "./services.controller";
+
+export async function servicesRoutes(app: FastifyInstance) {
+  app.get(
+    "/",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
+    servicesController.list,
+  );
+
+  app.get(
+    "/:id",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
+    servicesController.getById,
+  );
+
+  app.patch(
+    "/:id/start",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
+    servicesController.start,
+  );
+
+  app.patch(
+    "/:id/complete",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
+    servicesController.complete,
+  );
+
+  app.patch(
+    "/:id/cancel",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    servicesController.cancel,
+  );
+
+  app.patch(
+    "/:id/reschedule",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    servicesController.reschedule,
+  );
+
+  app.get(
+    "/:id/report",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    servicesController.getReport,
+  );
+
+  app.post(
+    "/:id/photos",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
+    servicesController.addPhotos,
+  );
+
+  app.delete(
+    "/:id/photos/:photoId",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    servicesController.removePhoto,
+  );
+
+  app.patch(
+    "/:id/equipment",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
+    servicesController.linkEquipment,
+  );
+}

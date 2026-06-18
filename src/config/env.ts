@@ -31,6 +31,26 @@ export const env = createEnv({
     LOG_LEVEL: z
       .enum(["trace", "debug", "info", "warn", "error", "fatal"])
       .default("info"),
+
+    FRONTEND_URL: z.string().default("http://localhost:3000"),
+
+    SUPABASE_URL: z.string().optional(),
+    SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+    SUPABASE_STORAGE_BUCKET: z.string().default("ciclus-uploads"),
+
+    RESEND_API_KEY: z.string().optional(),
+    EMAIL_FROM: z.string().default("noreply@ciclus.app"),
+
+    ZAPI_INSTANCE_ID: z.string().optional(),
+    ZAPI_TOKEN: z.string().optional(),
+    ZAPI_BASE_URL: z.string().default("https://api.z-api.io"),
+
+    REFRESH_TOKEN_SECRET: z
+      .string()
+      .min(32, "REFRESH_TOKEN_SECRET deve ter pelo menos 32 caracteres")
+      .optional(),
+
+    REFRESH_TOKEN_EXPIRES_IN: z.coerce.number().default(60 * 60 * 24 * 30), // 30 dias
   },
 
   runtimeEnv: process.env,
