@@ -26,4 +26,16 @@ export async function dashboardRoutes(app: FastifyInstance) {
     { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
     dashboardController.getRecentActivity,
   );
+
+  app.get(
+    "/dashboard/technician-status",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    dashboardController.getTechnicianStatus,
+  );
+
+  app.get(
+    "/dashboard/monthly-revenue",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    dashboardController.getMonthlyRevenue,
+  );
 }

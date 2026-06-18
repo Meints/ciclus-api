@@ -9,6 +9,7 @@ import corsPlugin from "./plugins/cors";
 import helmetPlugin from "./plugins/helmet";
 import rateLimitPlugin from "./plugins/rate-limit";
 import swaggerPlugin from "./plugins/swagger";
+import requestContextPlugin from "./lib/request-context";
 import { healthRoute } from "./routes/health.route";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { companyRoutes } from "./modules/company/company.routes";
@@ -61,6 +62,7 @@ export function buildApp() {
   app.register(corsPlugin);
   app.register(helmetPlugin);
   app.register(rateLimitPlugin);
+  app.register(requestContextPlugin);
 
   app.register(multipart, {
     limits: { fileSize: 5 * 1024 * 1024 },

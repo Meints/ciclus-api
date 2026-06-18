@@ -26,8 +26,8 @@ export default fp(async (app) => {
     secret: env.JWT_SECRET,
     sign: { expiresIn: env.JWT_EXPIRES_IN },
     cookie: {
-      cookieName: "token",
-      signed: true,
+      cookieName: "ciclus_token",
+      signed: false,
     },
   });
 

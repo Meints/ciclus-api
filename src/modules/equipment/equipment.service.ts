@@ -2,6 +2,10 @@ import { prisma } from "../../config/prisma";
 import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
 
+function mapEquipment(e: any) {
+  return { ...e, status: e.isActive ? "ACTIVE" : "INACTIVE" };
+}
+
 async function verifyCustomer(companyId: string, customerId: string) {
   const customer = await prisma.customer.findFirst({
     where: { id: customerId, companyId, deletedAt: null },
@@ -30,12 +34,12 @@ export async function list(
     where.type = filters.type;
   }
 
-  const equipment = await prisma.equipment.findMany({
+  const items = await prisma.equipment.findMany({
     where: where as any,
     orderBy: { createdAt: "desc" },
   });
 
-  return { equipment };
+  return { data: items.map(mapEquipment) };
 }
 
 export async function create(
@@ -83,7 +87,7 @@ export async function create(
     } as Record<string, unknown>,
   });
 
-  return equipment;
+  return mapEquipment(equipment);
 }
 
 export async function getById(companyId: string, customerId: string, equipmentId: string) {
@@ -108,7 +112,7 @@ export async function getById(companyId: string, customerId: string, equipmentId
     },
   });
 
-  return { ...equipment, serviceHistory };
+  return { ...mapEquipment(equipment), serviceHistory };
 }
 
 export async function update(
@@ -171,7 +175,7 @@ export async function update(
     } as Record<string, unknown>,
   });
 
-  return updated;
+  return mapEquipment(updated);
 }
 
 export async function toggle(companyId: string, customerId: string, equipmentId: string) {
@@ -199,7 +203,7 @@ export async function toggle(companyId: string, customerId: string, equipmentId:
     newData: { isActive: updated.isActive } as Record<string, unknown>,
   });
 
-  return updated;
+  return mapEquipment(updated);
 }
 
 export async function remove(companyId: string, customerId: string, equipmentId: string) {

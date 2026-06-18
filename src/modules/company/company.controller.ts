@@ -1,6 +1,8 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../../config/prisma";
 import * as companyService from "./company.service";
+import { validateOrThrow } from "../../lib/validate";
+import { updateCompanySchema } from "./dtos/update-company.dto";
 
 export async function getCompany(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string; role: string };
@@ -10,29 +12,24 @@ export async function getCompany(request: FastifyRequest, reply: FastifyReply) {
 
 export async function updateCompany(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string; sub: string };
-  const company = await companyService.updateCompany(
-    user.companyId,
-    request.body as Record<string, unknown>,
-    user.sub,
-  );
+  const body = validateOrThrow(updateCompanySchema, request.body);
+  const company = await companyService.updateCompany(user.companyId, body as Record<string, unknown>, user.sub);
   return reply.status(200).send({ data: company });
 }
 
 export async function uploadLogo(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string; sub: string };
 
-  // TODO: When @fastify/multipart is registered, extract file buffer and mimeType,
-  // then call companyService.uploadLogo(companyId, buffer, mimeType, userId).
-  // For now, accept a URL from the body or use a placeholder.
-  const body = request.body as { url?: string } | undefined;
-  const logoUrl = body?.url ?? `/logos/${user.companyId}.png`;
+  const file = await request.file();
+  if (!file) {
+    return reply.status(400).send({ error: { code: "NO_FILE", message: "Nenhum arquivo enviado" } });
+  }
 
-  await prisma.company.update({
-    where: { id: user.companyId },
-    data: { logoUrl },
-  });
+  const buffer = await file.toBuffer();
+  const mimeType = file.mimetype;
 
-  return reply.status(200).send({ data: { logoUrl } });
+  const result = await companyService.uploadLogo(user.companyId, buffer, mimeType, user.sub);
+  return reply.status(200).send({ data: result });
 }
 
 export async function getUsage(request: FastifyRequest, reply: FastifyReply) {

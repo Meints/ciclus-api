@@ -1,0 +1,35 @@
+[04:06:24] [32mINFO[39m: [36mServer listening at http://127.0.0.1:3333[39m
+[04:06:24] [32mINFO[39m: [36mServer listening at http://26.32.236.151:3333[39m
+[04:06:24] [32mINFO[39m: [36mServer listening at http://192.168.1.111:3333[39m
+[04:06:24] [32mINFO[39m: [36mServer listening at http://172.26.128.1:3333[39m
+[04:06:24] [32mINFO[39m: [36mServer listening at http://127.0.0.1:3333[39m
+[04:06:31] [32mINFO[39m: [36mincoming request[39m
+    [35mreqId[39m: "req-1"
+    [35mreq[39m: {
+      "method": "POST",
+      "url": "/auth/login",
+      "host": "localhost:3333",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 62899
+    }
+[04:06:31] [32mINFO[39m: [36mrequest completed[39m
+    [35mreqId[39m: "req-1"
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 417.45960000157356
+[04:06:33] [32mINFO[39m: [36mincoming request[39m
+    [35mreqId[39m: "req-2"
+    [35mreq[39m: {
+      "method": "GET",
+      "url": "/health",
+      "host": "localhost:3333",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 62902
+    }
+[04:06:33] [32mINFO[39m: [36mrequest completed[39m
+    [35mreqId[39m: "req-2"
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 16.836899995803833

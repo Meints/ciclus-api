@@ -1,14 +1,49 @@
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
-import { maskCustomerForList, type CustomerRaw } from "../../lib/mask";
-import { parsePagination, buildSkip } from "../../utils/pagination";
+import { maskDocument, maskEmail, type CustomerRaw } from "../../lib/mask";
+import { parsePagination, buildSkip, buildMeta } from "../../utils/pagination";
 import { validateDocument, formatCpf, formatCnpj } from "../../utils/document";
+
+function mapCustomerToFrontend(c: any, role: string) {
+  const base = {
+    id: c.id,
+    companyId: c.companyId,
+    legalName: c.name,
+    tradeName: c.fantasyName ?? null,
+    name: c.name,
+    fantasyName: c.fantasyName ?? null,
+    documentType: c.documentType ?? null,
+    phone: c.phone ?? null,
+    notes: c.notes ?? null,
+    status: c.isActive ? "ACTIVE" : "INACTIVE",
+    isActive: c.isActive,
+    contractsCount: c._count?.contracts ?? 0,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+  };
+
+  if (role === "TECHNICIAN") {
+    return {
+      ...base,
+      document: c.document ? maskDocument(c.document, (c.documentType as "CPF" | "CNPJ") || "CNPJ") : null,
+      email: c.email ? maskEmail(c.email) : null,
+      address: null,
+    };
+  }
+
+  return {
+    ...base,
+    document: c.document ? maskDocument(c.document, (c.documentType as "CPF" | "CNPJ") || "CNPJ") : null,
+    email: c.email ? maskEmail(c.email) : null,
+    address: c.address ?? null,
+  };
+}
 
 export async function list(
   companyId: string,
   filters: { isActive?: string; search?: string },
-  query: { page?: string; limit?: string },
+  query: { page?: string; pageSize?: string },
   userRole: string,
 ) {
   const pagination = parsePagination(query);
@@ -44,22 +79,12 @@ export async function list(
     prisma.customer.count({ where: where as any }),
   ]);
 
-  let mapped;
-  if (userRole === "OWNER" || userRole === "ADMIN") {
-    mapped = customers.map((c) => ({
-      ...maskCustomerForList(c as unknown as CustomerRaw),
-      activeContracts: c._count.contracts,
-    }));
-  } else {
-    mapped = customers.map((c) => ({
-      id: c.id,
-      name: c.name,
-      isActive: c.isActive,
-      activeContracts: c._count.contracts,
-    }));
-  }
+  const mapped = customers.map((c) => mapCustomerToFrontend(c, userRole));
 
-  return { customers: mapped, total };
+  return {
+    data: mapped,
+    meta: buildMeta(total, pagination),
+  };
 }
 
 export async function create(
@@ -121,7 +146,7 @@ export async function create(
     newData: { name: customer.name, fantasyName: customer.fantasyName } as Record<string, unknown>,
   });
 
-  return customer;
+  return mapCustomerToFrontend(customer, "OWNER");
 }
 
 export async function getById(companyId: string, customerId: string) {
@@ -150,7 +175,36 @@ export async function getById(companyId: string, customerId: string) {
     throw new AppError("Cliente não encontrado", 404, "NOT_FOUND");
   }
 
-  return customer;
+  return {
+    ...mapCustomerToFrontend(customer, "OWNER"),
+    contracts: customer.contracts,
+    services: customer.services,
+    equipment: customer.equipment,
+  };
+}
+
+export async function reveal(companyId: string, customerId: string, userId: string) {
+  const customer = await prisma.customer.findFirst({
+    where: { id: customerId, companyId, deletedAt: null },
+  });
+
+  if (!customer) {
+    throw new AppError("Cliente não encontrado", 404, "NOT_FOUND");
+  }
+
+  await createAuditLog({
+    companyId,
+    userId,
+    entityType: "Customer",
+    entityId: customerId,
+    action: "SENSITIVE_DATA_REVEAL",
+    newData: { revealedAt: new Date().toISOString() },
+  });
+
+  return {
+    document: customer.document,
+    email: customer.email,
+  };
 }
 
 export async function update(
@@ -159,7 +213,7 @@ export async function update(
   data: Record<string, unknown>,
   userId: string,
 ) {
-  const { document: _, documentType: __, ...safeData } = data;
+  const allowedFields = ["name", "fantasyName", "email", "phone", "address", "notes"];
 
   const customer = await prisma.customer.findFirst({
     where: { id: customerId, companyId },
@@ -170,19 +224,17 @@ export async function update(
   }
 
   const oldData: Record<string, unknown> = {};
-  const newData: Record<string, unknown> = {};
   const updateData: Record<string, unknown> = {};
 
-  for (const key of Object.keys(safeData)) {
-    if (safeData[key] !== undefined) {
+  for (const key of Object.keys(data)) {
+    if (data[key] !== undefined && allowedFields.includes(key)) {
       oldData[key] = (customer as Record<string, unknown>)[key];
-      newData[key] = safeData[key];
-      updateData[key] = safeData[key];
+      updateData[key] = data[key];
     }
   }
 
   if (Object.keys(updateData).length === 0) {
-    return customer;
+    return mapCustomerToFrontend(customer, "OWNER");
   }
 
   const updated = await prisma.customer.update({
@@ -197,10 +249,10 @@ export async function update(
     entityId: customerId,
     action: "UPDATE",
     oldData,
-    newData,
+    newData: updateData,
   });
 
-  return updated;
+  return mapCustomerToFrontend(updated, "OWNER");
 }
 
 export async function toggle(companyId: string, customerId: string) {
@@ -226,7 +278,7 @@ export async function toggle(companyId: string, customerId: string) {
     newData: { isActive: updated.isActive } as Record<string, unknown>,
   });
 
-  return updated;
+  return mapCustomerToFrontend(updated, "OWNER");
 }
 
 export async function remove(companyId: string, customerId: string) {

@@ -16,6 +16,7 @@ export async function login(email: string, password: string) {
     !user.isActive ||
     !user.company.isActive
   ) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
     throw new AppError("Credenciais inválidas", 401, "UNAUTHORIZED");
   }
 
@@ -74,7 +75,7 @@ export async function logout(userId: string, companyId: string) {
 export async function refresh(userId: string, rawRefreshToken: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
 
-  if (!user || !user.refreshTokenHash) {
+  if (!user || !user.refreshTokenHash || !user.isActive || user.deletedAt) {
     throw new AppError("Token inválido", 401, "UNAUTHORIZED");
   }
 

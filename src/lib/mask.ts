@@ -82,3 +82,23 @@ export function maskCustomerForTechnician(customer: CustomerRaw): CustomerTechni
     address: customer.address ?? null,
   };
 }
+
+export function anonymizeIp(ip: string): string {
+  if (!ip || ip === "::1") return "0.0.0.0";
+
+  if (ip.startsWith("::ffff:")) {
+    const ipv4Part = ip.replace("::ffff:", "");
+    const parts = ipv4Part.split(".");
+    if (parts.length === 4 && parts[0] && parts[1]) {
+      return `${parts[0]}.${parts[1]}.0.0`;
+    }
+    return "0.0.0.0";
+  }
+
+  const parts = ip.split(".");
+  if (parts.length === 4 && parts[0] && parts[1]) {
+    return `${parts[0]}.${parts[1]}.0.0`;
+  }
+
+  return "0.0.0.0";
+}

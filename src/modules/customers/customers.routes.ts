@@ -38,4 +38,10 @@ export async function customersRoutes(app: FastifyInstance) {
     { preHandler: [app.authenticate, authorize("OWNER")] },
     customersController.remove,
   );
+
+  app.post(
+    "/:id/reveal",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    customersController.reveal,
+  );
 }

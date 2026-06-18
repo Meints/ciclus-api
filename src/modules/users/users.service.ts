@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
-import { parsePagination, buildSkip } from "../../utils/pagination";
+import { parsePagination, buildSkip, buildMeta } from "../../utils/pagination";
 
 const sensitiveFields = ["passwordHash", "refreshTokenHash", "resetPasswordToken", "resetPasswordExpiresAt"] as const;
 
@@ -20,7 +20,7 @@ function excludeSensitive<T extends Record<string, unknown>>(user: T): Omit<T, U
   return result;
 }
 
-export async function list(companyId: string, filters: { role?: string; isActive?: string }, query: { page?: string; limit?: string }) {
+export async function list(companyId: string, filters: { role?: string; isActive?: string }, query: { page?: string; pageSize?: string }) {
   const pagination = parsePagination(query);
   const where: Record<string, unknown> = { companyId, deletedAt: null };
 
@@ -41,7 +41,14 @@ export async function list(companyId: string, filters: { role?: string; isActive
     prisma.user.count({ where: where as any }),
   ]);
 
-  return { users: users.map((u) => excludeSensitive(u as unknown as Record<string, unknown>)), total };
+  const mapped = users.map((u) => {
+    const safe = excludeSensitive(u as unknown as Record<string, unknown>);
+    return {
+      ...safe,
+      status: (safe as any).isActive ? "ACTIVE" : "INACTIVE",
+    };
+  });
+  return { data: mapped, meta: buildMeta(total, pagination) };
 }
 
 export async function create(companyId: string, data: { name: string; email: string; role: string; password: string }, currentUserId: string, currentUserRole: string) {

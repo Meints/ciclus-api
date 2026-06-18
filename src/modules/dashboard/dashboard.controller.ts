@@ -25,3 +25,15 @@ export async function getRecentActivity(request: FastifyRequest, reply: FastifyR
   const data = await dashboardService.getRecentActivity(user.companyId);
   return reply.status(200).send({ data });
 }
+
+export async function getTechnicianStatus(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string };
+  const data = await dashboardService.getTechnicianStatus(user.companyId);
+  return reply.status(200).send({ data });
+}
+
+export async function getMonthlyRevenue(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string };
+  const data = await dashboardService.getMonthlyRevenue(user.companyId);
+  return reply.status(200).send({ data });
+}

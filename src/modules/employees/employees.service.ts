@@ -1,9 +1,9 @@
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
-import { parsePagination, buildSkip } from "../../utils/pagination";
+import { parsePagination, buildSkip, buildMeta } from "../../utils/pagination";
 
-export async function list(companyId: string, filters: { isActive?: string }, query: { page?: string; limit?: string }) {
+export async function list(companyId: string, filters: { isActive?: string }, query: { page?: string; pageSize?: string }) {
   const pagination = parsePagination(query);
   const where: Record<string, unknown> = { companyId, deletedAt: null };
 
@@ -40,12 +40,13 @@ export async function list(companyId: string, filters: { isActive?: string }, qu
     email: emp.email,
     phone: emp.phone,
     isActive: emp.isActive,
+    status: emp.isActive ? "ACTIVE" : "INACTIVE",
     createdAt: emp.createdAt,
     updatedAt: emp.updatedAt,
     servicesThisMonth: emp._count.services,
   }));
 
-  return { employees: mapped, total };
+  return { data: mapped, meta: buildMeta(total, pagination) };
 }
 
 export async function create(companyId: string, data: { name: string; email?: string; phone?: string }) {
@@ -154,7 +155,7 @@ export async function toggle(companyId: string, employeeId: string) {
   return updated;
 }
 
-export async function getServices(companyId: string, employeeId: string, filters: { dateStart?: string; dateEnd?: string; status?: string }, query: { page?: string; limit?: string }) {
+export async function getServices(companyId: string, employeeId: string, filters: { dateStart?: string; dateEnd?: string; status?: string }, query: { page?: string; pageSize?: string }) {
   const pagination = parsePagination(query);
   const where: Record<string, unknown> = { companyId, employeeId, deletedAt: null };
 
@@ -187,7 +188,7 @@ export async function getServices(companyId: string, employeeId: string, filters
     prisma.service.count({ where: where as any }),
   ]);
 
-  return { services, total };
+  return { data: services, meta: buildMeta(total, pagination) };
 }
 
 export async function getMonthlyServiceCount(companyId: string) {

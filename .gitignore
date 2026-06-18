@@ -3,3 +3,7 @@ node_modules
 /generated/prisma
 
 .env
+
+*.log
+server_out.txt
+server_err.txt

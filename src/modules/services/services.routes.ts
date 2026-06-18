@@ -39,6 +39,12 @@ export async function servicesRoutes(app: FastifyInstance) {
     servicesController.reschedule,
   );
 
+  app.post(
+    "/:id/resend-confirmation",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    servicesController.resendConfirmation,
+  );
+
   app.get(
     "/:id/report",
     { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
