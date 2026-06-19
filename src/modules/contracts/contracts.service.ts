@@ -3,7 +3,7 @@ import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
 import { parsePagination, buildSkip, buildMeta } from "../../utils/pagination";
 import { getNextServiceNumberInTx } from "../../utils/service-number";
-import type { ServiceType, ContractFrequency } from "../../../generated/prisma/enums";
+import type { ContractFrequency } from "../../../generated/prisma/enums";
 
 export async function list(
   companyId: string,
@@ -71,7 +71,6 @@ export async function create(
   companyId: string,
   data: {
     customerId: string;
-    serviceType: ServiceType;
     frequency: ContractFrequency;
     startDate: string;
     endDate: string;
@@ -117,7 +116,6 @@ export async function create(
         companyId,
         contractId: contract.id,
         customerId: data.customerId,
-        serviceType: data.serviceType,
         scheduledAt: startDate,
         status: "SCHEDULED",
         amount: data.amount,

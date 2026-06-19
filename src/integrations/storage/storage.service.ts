@@ -1,3 +1,4 @@
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { env } from "../../config/env";
 import { AppError } from "../../lib/app-error";
 
@@ -13,8 +14,7 @@ function createClient() {
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return null;
   }
-  const { createClient } = require("@supabase/supabase-js");
-  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  return createSupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 export async function uploadFile(

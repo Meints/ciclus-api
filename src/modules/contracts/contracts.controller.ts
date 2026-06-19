@@ -24,7 +24,6 @@ export async function create(request: FastifyRequest, reply: FastifyReply) {
   const body = validateOrThrow(createContractSchema, request.body);
   const result = await contractsService.create(user.companyId, {
     customerId: body.customerId,
-    serviceType: body.serviceType,
     frequency: body.frequency,
     startDate: body.startDate,
     endDate: body.endDate,

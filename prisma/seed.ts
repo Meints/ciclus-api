@@ -6,13 +6,21 @@ import bcrypt from "bcrypt";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
+const SEED_UUID = {
+  COMPANY: "00000000-0000-0000-0000-000000000001",
+  EMPLOYEE: "00000000-0000-0000-0000-000000000002",
+  CUSTOMER: "00000000-0000-0000-0000-000000000003",
+  CONTRACT: "00000000-0000-0000-0000-000000000004",
+  SERVICE: "00000000-0000-0000-0000-000000000005",
+} as const;
+
 async function main() {
   const passwordHash = await bcrypt.hash("admin123", 10);
 
   const company = await prisma.company.upsert({
-    where: { id: "ciclus-seed-company" },
+    where: { id: SEED_UUID.COMPANY },
     create: {
-      id: "ciclus-seed-company",
+      id: SEED_UUID.COMPANY,
       name: "Ciclus",
       fantasyName: "Ciclus Tecnologia",
       email: "contato@ciclus.app",
@@ -48,9 +56,9 @@ async function main() {
   }
 
   const employee = await prisma.employee.upsert({
-    where: { id: "ciclus-seed-employee-1" },
+    where: { id: SEED_UUID.EMPLOYEE },
     create: {
-      id: "ciclus-seed-employee-1",
+      id: SEED_UUID.EMPLOYEE,
       companyId: company.id,
       name: "João Técnico",
       email: "joao@ciclus.app",
@@ -60,9 +68,9 @@ async function main() {
   });
 
   const customer = await prisma.customer.upsert({
-    where: { id: "ciclus-seed-customer-1" },
+    where: { id: SEED_UUID.CUSTOMER },
     create: {
-      id: "ciclus-seed-customer-1",
+      id: SEED_UUID.CUSTOMER,
       companyId: company.id,
       name: "Empresa Cliente Ltda",
       fantasyName: "Cliente Exemplo",
@@ -77,9 +85,9 @@ async function main() {
   });
 
   const contract = await prisma.contract.upsert({
-    where: { id: "ciclus-seed-contract-1" },
+    where: { id: SEED_UUID.CONTRACT },
     create: {
-      id: "ciclus-seed-contract-1",
+      id: SEED_UUID.CONTRACT,
       companyId: company.id,
       customerId: customer.id,
       frequency: "MONTHLY",
@@ -94,9 +102,9 @@ async function main() {
   });
 
   const lastService = await prisma.service.upsert({
-    where: { id: "ciclus-seed-service-1" },
+    where: { id: SEED_UUID.SERVICE },
     create: {
-      id: "ciclus-seed-service-1",
+      id: SEED_UUID.SERVICE,
       serviceNumber: 1,
       companyId: company.id,
       contractId: contract.id,

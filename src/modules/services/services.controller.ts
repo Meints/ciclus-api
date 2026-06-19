@@ -6,6 +6,14 @@ import { cancelServiceSchema } from "./dtos/cancel-service.dto";
 import { rescheduleServiceSchema } from "./dtos/reschedule-service.dto";
 import { serviceFiltersSchema } from "./dtos/service-filters.dto";
 import { linkEquipmentSchema } from "./dtos/link-equipment.dto";
+import { createServiceSchema } from "./dtos/create-service.dto";
+
+export async function create(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string };
+  const body = validateOrThrow(createServiceSchema, request.body);
+  const service = await servicesService.create(user.companyId, body);
+  return reply.status(201).send({ data: service });
+}
 
 export async function list(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string; role: string; sub: string };
@@ -41,6 +49,20 @@ export async function start(request: FastifyRequest, reply: FastifyReply) {
   return reply.status(200).send({ data: updated });
 }
 
+export async function revert(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string };
+  const { id } = request.params as { id: string };
+  const updated = await servicesService.revert(user.companyId, id);
+  return reply.status(200).send({ data: updated });
+}
+
+export async function reopen(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string };
+  const { id } = request.params as { id: string };
+  const updated = await servicesService.reopen(user.companyId, id);
+  return reply.status(200).send({ data: updated });
+}
+
 export async function complete(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string };
   const { id } = request.params as { id: string };
@@ -69,6 +91,13 @@ export async function resendConfirmation(request: FastifyRequest, reply: Fastify
   const user = request.user as { companyId: string };
   const { id } = request.params as { id: string };
   const result = await servicesService.resendConfirmation(user.companyId, id);
+  return reply.status(200).send({ data: result });
+}
+
+export async function generatePdf(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string };
+  const { id } = request.params as { id: string };
+  const result = await servicesService.generatePdf(user.companyId, id);
   return reply.status(200).send({ data: result });
 }
 

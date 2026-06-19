@@ -3,10 +3,171 @@ import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
 import { maskCustomerForTechnician, maskDocument, maskEmail, type CustomerRaw } from "../../lib/mask";
 import { parsePagination, buildSkip, buildMeta } from "../../utils/pagination";
+import { getNextServiceNumber } from "../../utils/service-number";
+import { generateServiceReport } from "../../integrations/pdf/pdf.service";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "../../config/env";
+
+function formatAddress(address: Record<string, unknown> | null | undefined): string {
+  if (!address) return "";
+  const parts: string[] = [];
+  if (address.street) parts.push(String(address.street));
+  if (address.number) parts.push(String(address.number));
+  if (address.neighborhood) parts.push(String(address.neighborhood));
+  if (address.city) parts.push(String(address.city));
+  if (address.state) parts.push(String(address.state));
+  return parts.join(", ");
+}
+
+function formatServiceResponse(service: any) {
+  const customer = service.customer ?? {};
+  const employee = service.employee ?? {};
+
+  const equipmentIds = (service.equipment ?? []).map((se: any) => se.equipmentId);
+  const equipmentDetails = (service.equipment ?? []).map((se: any) => {
+    const eq = se.equipment ?? {};
+    return {
+      id: eq.id,
+      type: eq.type,
+      brand: eq.brand,
+      model: eq.model,
+      location: eq.location,
+      capacity: eq.capacity,
+      status: eq.status,
+    };
+  });
+
+  const photoUrls = (service.photos ?? []).map((p: any) => p.url);
+
+  const execution = service.completedDate
+    ? {
+        notes: service.executionNotes ?? "",
+        photoUrls,
+        completedAt: service.completedDate instanceof Date
+          ? service.completedDate.toISOString()
+          : String(service.completedDate),
+      }
+    : undefined;
+
+  const confirmationStatus = service.confirmedAt ? "CONFIRMED" : "PENDING";
+  const confirmationLink = service.confirmationToken
+    ? `/confirm/${service.confirmationToken}`
+    : null;
+
+  return {
+    id: service.id,
+    companyId: service.companyId,
+    contractId: service.contractId ?? "",
+    customerId: service.customerId,
+    customerName: customer.name ?? "",
+    customerAddress: formatAddress(customer.address as Record<string, unknown> | null | undefined),
+    customerPhone: customer.phone ?? null,
+    serviceType: service.serviceType ?? "",
+    scheduledDate: service.scheduledAt instanceof Date
+      ? service.scheduledAt.toISOString()
+      : String(service.scheduledAt),
+    employeeId: service.employeeId ?? null,
+    employeeName: employee.name ?? null,
+    status: service.status,
+    equipmentIds,
+    equipmentDetails: equipmentDetails.length > 0 ? equipmentDetails : undefined,
+    execution,
+    reportPdfUrl: service.reportUrl ?? null,
+    confirmationStatus,
+    confirmationToken: service.confirmationToken ?? null,
+    confirmationLink,
+    confirmationExpiresAt: service.confirmationTokenExpiresAt instanceof Date
+      ? service.confirmationTokenExpiresAt.toISOString()
+      : service.confirmationTokenExpiresAt ?? null,
+    confirmedAt: service.confirmedAt instanceof Date
+      ? service.confirmedAt.toISOString()
+      : service.confirmedAt ?? null,
+    createdAt: service.createdAt instanceof Date
+      ? service.createdAt.toISOString()
+      : String(service.createdAt),
+    updatedAt: service.updatedAt instanceof Date
+      ? service.updatedAt.toISOString()
+      : String(service.updatedAt),
+  };
+}
+
+export async function create(
+  companyId: string,
+  data: {
+    contractId?: string;
+    customerId: string;
+    serviceType: string;
+    scheduledDate: string;
+    employeeId?: string;
+    equipmentIds?: string[];
+  },
+) {
+  const scheduledAt = new Date(data.scheduledDate);
+  if (isNaN(scheduledAt.getTime())) {
+    throw new AppError("Data agendada inválida", 400, "INVALID_DATE");
+  }
+
+  const customer = await prisma.customer.findFirst({
+    where: { id: data.customerId, companyId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!customer) throw new AppError("Cliente não encontrado", 404, "NOT_FOUND");
+
+  if (data.contractId) {
+    const contract = await prisma.contract.findFirst({
+      where: { id: data.contractId, companyId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!contract) throw new AppError("Contrato não encontrado", 404, "NOT_FOUND");
+  }
+
+  const serviceNumber = await getNextServiceNumber(companyId);
+  const amount = data.contractId
+    ? await prisma.contract.findFirst({
+        where: { id: data.contractId },
+        select: { amount: true },
+      }).then((c) => c?.amount ?? null)
+    : null;
+
+  const service = await prisma.service.create({
+    data: {
+      serviceNumber,
+      companyId,
+      contractId: data.contractId ?? null,
+      customerId: data.customerId,
+      scheduledAt,
+      status: "SCHEDULED",
+      amount,
+      employeeId: data.employeeId ?? null,
+      serviceType: data.serviceType,
+    },
+    include: {
+      customer: { select: { id: true, name: true } },
+      employee: { select: { id: true, name: true } },
+    },
+  });
+
+  if (data.equipmentIds && data.equipmentIds.length > 0) {
+    await prisma.serviceEquipment.createMany({
+      data: data.equipmentIds.map((equipmentId) => ({
+        serviceId: service.id,
+        equipmentId,
+      })),
+    });
+  }
+
+  await createAuditLog({
+    companyId,
+    entityType: "Service",
+    entityId: service.id,
+    action: "CREATE",
+    newData: { serviceNumber, customerId: data.customerId, serviceType: data.serviceType },
+  });
+
+  return formatServiceResponse(service);
+}
 
 export async function list(
   companyId: string,
@@ -51,7 +212,10 @@ export async function list(
     prisma.service.count({ where: where as any }),
   ]);
 
-  return { data: services, meta: buildMeta(total, pagination) };
+  return {
+    data: services.map(formatServiceResponse),
+    meta: buildMeta(total, pagination),
+  };
 }
 
 export async function getById(companyId: string, serviceId: string, userRole?: string) {
@@ -69,23 +233,21 @@ export async function getById(companyId: string, serviceId: string, userRole?: s
 
   const customer = service.customer as unknown as CustomerRaw;
 
-  if (userRole === "TECHNICIAN") {
-    return {
-      ...service,
-      customer: maskCustomerForTechnician(customer),
-    };
-  }
+  let masked: Record<string, unknown>;
 
-  return {
-    ...service,
-    customer: {
+  if (userRole === "TECHNICIAN") {
+    masked = maskCustomerForTechnician(customer) as unknown as Record<string, unknown>;
+  } else {
+    masked = {
       ...customer,
       document: customer.document
         ? maskDocument(customer.document, (customer.documentType as "CPF" | "CNPJ") || "CNPJ")
         : null,
       email: customer.email ? maskEmail(customer.email) : null,
-    },
-  };
+    };
+  }
+
+  return formatServiceResponse({ ...service, customer: masked });
 }
 
 export async function start(companyId: string, serviceId: string) {
@@ -106,6 +268,60 @@ export async function start(companyId: string, serviceId: string) {
   await createAuditLog({
     companyId, entityType: "Service", entityId: serviceId, action: "START",
     oldData: { status: "SCHEDULED" } as Record<string, unknown>,
+    newData: { status: "IN_PROGRESS" } as Record<string, unknown>,
+  });
+
+  return updated;
+}
+
+export async function revert(companyId: string, serviceId: string) {
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, companyId, deletedAt: null },
+  });
+
+  if (!service) throw new AppError("Serviço não encontrado", 404, "NOT_FOUND");
+  if (service.status !== "IN_PROGRESS") {
+    throw new AppError("Apenas serviços em andamento podem ser revertidos", 400, "INVALID_STATUS");
+  }
+
+  const updated = await prisma.service.update({
+    where: { id: serviceId },
+    data: { status: "SCHEDULED" },
+  });
+
+  await createAuditLog({
+    companyId, entityType: "Service", entityId: serviceId, action: "UPDATE",
+    oldData: { status: "IN_PROGRESS" } as Record<string, unknown>,
+    newData: { status: "SCHEDULED" } as Record<string, unknown>,
+  });
+
+  return updated;
+}
+
+export async function reopen(companyId: string, serviceId: string) {
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, companyId, deletedAt: null },
+  });
+
+  if (!service) throw new AppError("Serviço não encontrado", 404, "NOT_FOUND");
+  if (service.status !== "COMPLETED") {
+    throw new AppError("Apenas serviços concluídos podem ser reabertos", 400, "INVALID_STATUS");
+  }
+
+  const updated = await prisma.service.update({
+    where: { id: serviceId },
+    data: {
+      status: "IN_PROGRESS",
+      completedDate: null,
+      executionNotes: null,
+      durationMinutes: null,
+      reportUrl: null,
+    },
+  });
+
+  await createAuditLog({
+    companyId, entityType: "Service", entityId: serviceId, action: "UPDATE",
+    oldData: { status: "COMPLETED" } as Record<string, unknown>,
     newData: { status: "IN_PROGRESS" } as Record<string, unknown>,
   });
 
@@ -154,7 +370,54 @@ export async function complete(
     return updated;
   });
 
-  return { ...result, confirmationToken, confirmationLink: `/api/confirm/${confirmationToken}` };
+  const full = await prisma.service.findUnique({
+    where: { id: serviceId },
+    include: {
+      customer: { select: { name: true, address: true } },
+      employee: { select: { name: true } },
+      company: { select: { name: true, niche: true, logoUrl: true } },
+      equipment: {
+        include: {
+          equipment: { select: { type: true, brand: true, model: true, location: true } },
+        },
+      },
+    },
+  });
+
+  const reportUrl = full
+    ? await generateServiceReport(serviceId, {
+        serviceNumber: full.serviceNumber,
+        serviceType: full.serviceType,
+        scheduledAt: full.scheduledAt,
+        completedDate: full.completedDate,
+        durationMinutes: full.durationMinutes,
+        status: full.status,
+        technicianName: full.employee?.name ?? null,
+        companyId: full.companyId,
+        companyName: full.company.name,
+        companyNiche: full.company.niche,
+        companyLogo: full.company.logoUrl,
+        customerName: full.customer.name,
+        customerAddress: full.customer.address as Record<string, unknown> | null,
+        equipment: full.equipment.map((se) => ({
+          type: se.equipment.type,
+          brand: se.equipment.brand,
+          model: se.equipment.model,
+          location: se.equipment.location,
+          notes: se.notes,
+        })),
+        executionNotes: full.executionNotes,
+      })
+    : "";
+
+  if (reportUrl) {
+    await prisma.service.update({
+      where: { id: serviceId },
+      data: { reportUrl: reportUrl },
+    });
+  }
+
+  return { ...result, confirmationToken, confirmationLink: `/confirm/${confirmationToken}`, reportPdfUrl: reportUrl || null };
 }
 
 export async function cancel(companyId: string, serviceId: string, data: { reason: string }) {
@@ -229,6 +492,68 @@ export async function resendConfirmation(companyId: string, serviceId: string) {
   });
 
   return { ...updated, confirmationToken: newToken };
+}
+
+export async function generatePdf(companyId: string, serviceId: string) {
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, companyId, deletedAt: null },
+  });
+
+  if (!service) throw new AppError("Serviço não encontrado", 404, "NOT_FOUND");
+  if (service.status !== "COMPLETED") {
+    throw new AppError("Apenas serviços concluídos podem gerar PDF", 400, "INVALID_STATUS");
+  }
+
+  const full = await prisma.service.findUnique({
+    where: { id: serviceId },
+    include: {
+      customer: { select: { name: true, address: true } },
+      employee: { select: { name: true } },
+      company: { select: { name: true, niche: true, logoUrl: true } },
+      equipment: {
+        include: {
+          equipment: { select: { type: true, brand: true, model: true, location: true } },
+        },
+      },
+    },
+  });
+
+  if (!full) throw new AppError("Serviço não encontrado", 404, "NOT_FOUND");
+
+  const reportUrl = await generateServiceReport(serviceId, {
+    serviceNumber: full.serviceNumber,
+    serviceType: full.serviceType,
+    scheduledAt: full.scheduledAt,
+    completedDate: full.completedDate,
+    durationMinutes: full.durationMinutes,
+    status: full.status,
+    technicianName: full.employee?.name ?? null,
+    companyId: full.companyId,
+    companyName: full.company.name,
+    companyNiche: full.company.niche,
+    companyLogo: full.company.logoUrl,
+    customerName: full.customer.name,
+    customerAddress: full.customer.address as Record<string, unknown> | null,
+    equipment: full.equipment.map((se) => ({
+      type: se.equipment.type,
+      brand: se.equipment.brand,
+      model: se.equipment.model,
+      location: se.equipment.location,
+      notes: se.notes,
+    })),
+    executionNotes: full.executionNotes,
+  });
+
+  if (!reportUrl) {
+    throw new AppError("Falha ao gerar o PDF. Verifique a configuração do storage.", 500, "PDF_GENERATION_FAILED");
+  }
+
+  await prisma.service.update({
+    where: { id: serviceId },
+    data: { reportUrl },
+  });
+
+  return { reportPdfUrl: reportUrl };
 }
 
 export async function getReport(companyId: string, serviceId: string) {

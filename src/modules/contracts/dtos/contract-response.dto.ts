@@ -4,7 +4,6 @@ export interface ContractResponse {
   customerId: string;
   customerName: string;
   customerAddress: unknown | null;
-  serviceType?: string;
   frequency: string;
   startDate: Date;
   endDate: Date;

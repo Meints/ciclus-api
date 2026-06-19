@@ -131,19 +131,30 @@ export async function getExpiringContracts(companyId: string) {
 
   const contracts = await prisma.contract.findMany({
     where: { companyId, deletedAt: null, status: "ACTIVE", endDate: { gte: now, lte: thirtyDaysFromNow } },
-    include: { customer: { select: { id: true, name: true } } },
+    include: {
+      customer: { select: { id: true, name: true } },
+      services: {
+        where: { deletedAt: null },
+        orderBy: { scheduledAt: "desc" },
+        take: 1,
+        select: { serviceType: true },
+      },
+    },
     orderBy: { endDate: "asc" },
   });
 
-  return contracts.map((c) => ({
-    id: c.id,
-    customerId: c.customerId,
-    customerName: c.customer.name,
-    serviceType: c.serviceType ?? "MAINTENANCE",
-    expiresAt: c.endDate.toISOString(),
-    daysRemaining: Math.ceil((c.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
-    value: Number(c.amount),
-  }));
+  return contracts.map((c) => {
+    const lastService = c.services?.[0];
+    return {
+      id: c.id,
+      customerId: c.customerId,
+      customerName: c.customer.name,
+      serviceType: lastService?.serviceType ?? "MAINTENANCE",
+      expiresAt: c.endDate.toISOString(),
+      daysRemaining: Math.ceil((c.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+      value: Number(c.amount),
+    };
+  });
 }
 
 export async function getRecentActivity(companyId: string) {

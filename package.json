@@ -11,6 +11,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
+    "test:pdf": "tsx scripts/test-pdf.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
@@ -37,6 +38,7 @@
     "@fastify/swagger-ui": "^6.0.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@supabase/supabase-js": "^2.108.2",
     "@t3-oss/env-core": "^0.13.11",
     "@types/node-cron": "^3.0.11",
     "@types/pdfkit": "^0.17.6",

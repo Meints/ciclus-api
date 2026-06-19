@@ -3,6 +3,12 @@ import { authorize } from "../../middleware/authorize";
 import * as servicesController from "./services.controller";
 
 export async function servicesRoutes(app: FastifyInstance) {
+  app.post(
+    "/",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    servicesController.create,
+  );
+
   app.get(
     "/",
     { preHandler: [app.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
@@ -19,6 +25,18 @@ export async function servicesRoutes(app: FastifyInstance) {
     "/:id/start",
     { preHandler: [app.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
     servicesController.start,
+  );
+
+  app.patch(
+    "/:id/revert",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    servicesController.revert,
+  );
+
+  app.patch(
+    "/:id/reopen",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    servicesController.reopen,
   );
 
   app.patch(
@@ -49,6 +67,12 @@ export async function servicesRoutes(app: FastifyInstance) {
     "/:id/report",
     { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
     servicesController.getReport,
+  );
+
+  app.post(
+    "/:id/generate-pdf",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    servicesController.generatePdf,
   );
 
   app.post(
