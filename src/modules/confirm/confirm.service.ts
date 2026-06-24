@@ -1,6 +1,8 @@
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
+import { buildServiceReportData } from "../services/services.helpers";
+import { generateServiceReport } from "../../integrations/pdf/pdf.service";
 
 function anonymizeIp(ip: string): string {
   if (!ip || ip === "::1" || ip.startsWith("::ffff:")) {
@@ -63,7 +65,7 @@ export async function getConfirmationData(token: string) {
   };
 }
 
-export async function confirm(token: string, ip: string, userAgent: string) {
+export async function confirm(token: string, ip: string, userAgent: string, name: string, document?: string, documentType?: string) {
   const service = await prisma.service.findUnique({
     where: { confirmationToken: token },
     select: {
@@ -97,6 +99,9 @@ export async function confirm(token: string, ip: string, userAgent: string) {
         confirmedAt: now,
         confirmedIp: anonymizeIp(ip),
         confirmedUserAgent: userAgent,
+        confirmedName: name,
+        confirmedDocument: document ?? null,
+        confirmedDocumentType: documentType ?? null,
         confirmationToken: null,
         confirmationTokenExpiresAt: null,
       },
@@ -109,6 +114,19 @@ export async function confirm(token: string, ip: string, userAgent: string) {
       action: "CONFIRM",
     });
   });
+
+  try {
+    const reportData = await buildServiceReportData(service.id);
+    const reportUrl = await generateServiceReport(service.id, reportData);
+    if (reportUrl) {
+      await prisma.service.update({
+        where: { id: service.id },
+        data: { reportUrl },
+      });
+    }
+  } catch (error) {
+    console.error(`[confirm] Falha ao regenerar PDF na confirmação da OS ${service.id}:`, error);
+  }
 
   return {
     success: true,

@@ -46,6 +46,16 @@ export async function toggle(request: FastifyRequest, reply: FastifyReply) {
   return reply.status(200).send({ data: toggled });
 }
 
+export async function getAvailability(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string };
+  const { id } = request.params as { id: string };
+  const { date, duration } = request.query as { date?: string; duration?: string };
+  const result = await employeesService.getAvailability(
+    user.companyId, id, date, duration ? parseInt(duration, 10) : undefined,
+  );
+  return reply.status(200).send({ data: result });
+}
+
 export async function getServices(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string };
   const { id } = request.params as { id: string };

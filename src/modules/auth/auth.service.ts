@@ -3,6 +3,44 @@ import { prisma } from "../../config/prisma";
 import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
 import { generateToken, hashToken, compareToken } from "../../lib/token";
+import { sendForgotPasswordEmail } from "../../integrations/email/email.service";
+
+export async function register(name: string, email: string, password: string, companyName: string) {
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    throw new AppError("E-mail já cadastrado", 409, "EMAIL_ALREADY_EXISTS");
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  const company = await prisma.company.create({
+    data: { name: companyName },
+  });
+
+  const user = await prisma.user.create({
+    data: { name, email, passwordHash, companyId: company.id, role: "OWNER" },
+    include: { company: true },
+  });
+
+  const refreshToken = generateToken();
+  const hashedRefreshToken = await hashToken(refreshToken);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { refreshTokenHash: hashedRefreshToken, lastLoginAt: new Date() },
+  });
+
+  await createAuditLog({
+    companyId: company.id,
+    userId: user.id,
+    entityType: "User",
+    entityId: user.id,
+    action: "REGISTER",
+  });
+
+  const { passwordHash: _ph, refreshTokenHash: _rth, resetPasswordToken: _rpt, resetPasswordExpiresAt: _rpea, ...safeUser } = user;
+  return { user: safeUser, refreshToken };
+}
 
 export async function login(email: string, password: string) {
   const user = await prisma.user.findUnique({
@@ -136,8 +174,7 @@ export async function forgotPassword(email: string) {
     },
   });
 
-  // TODO: Send email with reset link containing token
-  console.log(`[FORGOT PASSWORD] Token for ${email}: ${token}`);
+  await sendForgotPasswordEmail(email, token);
 }
 
 export async function resetPassword(token: string, newPassword: string) {

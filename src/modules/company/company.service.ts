@@ -2,6 +2,7 @@ import { prisma } from "../../config/prisma";
 import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
 import { maskDocument } from "../../lib/mask";
+import { ensureLogosBucket, LOGOS_BUCKET, uploadFile, validateImageMime } from "../../integrations/storage/storage.service";
 
 export async function getCompany(companyId: string, requestingUserRole: string) {
   const company = await prisma.company.findUnique({ where: { id: companyId } });
@@ -19,7 +20,7 @@ export async function updateCompany(companyId: string, data: Record<string, unkn
   const oldCompany = await prisma.company.findUnique({ where: { id: companyId } });
   if (!oldCompany) throw new AppError("Empresa não encontrada", 404, "NOT_FOUND");
 
-  const allowedFields = ["name", "fantasyName", "email", "phone", "niche", "address"];
+  const allowedFields = ["name", "fantasyName", "document", "email", "phone", "niche", "address"];
   const updateData: Record<string, unknown> = {};
 
   for (const key of allowedFields) {
@@ -44,19 +45,18 @@ export async function updateCompany(companyId: string, data: Record<string, unkn
   return updated;
 }
 
-export async function uploadLogo(companyId: string, fileBuffer: Buffer, mimeType: string, userId: string) {
-  const magicBytes: Record<string, string[]> = {
-    "FFD8FF": ["image/jpeg"],
-    "89504E47": ["image/png"],
-    "52494646": ["image/webp"],
-  };
+export async function uploadLogo(companyId: string, fileBuffer: Buffer, _mimeType: string, userId: string) {
+  const imageType = validateImageMime(fileBuffer);
+  if (!imageType) {
+    throw new AppError("Formato de imagem não suportado. Use PNG, JPG ou WebP.", 400, "INVALID_IMAGE");
+  }
 
-  const hexSignature = fileBuffer.subarray(0, 4).toString("hex").toUpperCase();
-  const detected = Object.keys(magicBytes).some((sig) => hexSignature.startsWith(sig));
-  if (!detected) throw new AppError("Formato de imagem não suportado", 400, "INVALID_IMAGE");
+  const ext = imageType === "jpeg" ? "jpg" : imageType;
+  const filePath = `companies/${companyId}/logo.${ext}`;
 
-  const ext = mimeType.split("/")[1];
-  const logoUrl = `/uploads/logos/${companyId}.${ext}`;
+  await ensureLogosBucket();
+  const mimeType = imageType === "jpeg" ? "image/jpeg" : imageType === "png" ? "image/png" : "image/webp";
+  const logoUrl = await uploadFile(LOGOS_BUCKET, filePath, fileBuffer, mimeType);
 
   await prisma.company.update({
     where: { id: companyId },

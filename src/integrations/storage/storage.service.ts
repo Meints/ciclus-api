@@ -17,6 +17,21 @@ function createClient() {
   return createSupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
+export const LOGOS_BUCKET = "ciclus-logos";
+
+export async function ensureLogosBucket(): Promise<void> {
+  const client = createClient();
+  if (!client) return;
+
+  const { data: existing } = await client.storage.getBucket(LOGOS_BUCKET);
+  if (existing) return;
+
+  await client.storage.createBucket(LOGOS_BUCKET, {
+    public: true,
+    allowed_mime_types: ["image/jpeg", "image/png", "image/webp"],
+  });
+}
+
 export async function uploadFile(
   bucket: string,
   path: string,
@@ -26,11 +41,6 @@ export async function uploadFile(
   const client = createClient();
   if (!client) {
     throw new AppError("Storage não configurado", 500, "STORAGE_NOT_CONFIGURED");
-  }
-
-  const ext = validateImageMime(buffer);
-  if (ext) {
-    mimeType = ext === "jpeg" ? "image/jpeg" : ext === "png" ? "image/png" : "image/webp";
   }
 
   const { data, error } = await client.storage.from(bucket).upload(path, buffer, {

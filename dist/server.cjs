@@ -418,8 +418,8 @@ var env = (0, import_env_core.createEnv)({
     DATABASE_URL: import_zod.z.url(),
     DIRECT_URL: import_zod.z.url(),
     JWT_SECRET: import_zod.z.string().min(32, "JWT_SECRET deve ter pelo menos 32 caracteres"),
-    JWT_EXPIRES_IN: import_zod.z.coerce.number().default(60 * 60 * 24),
-    // 1 dia
+    JWT_EXPIRES_IN: import_zod.z.coerce.number().default(60 * 60 * 24 * 7),
+    // 7 dias
     COOKIE_SECRET: import_zod.z.string().min(32, "COOKIE_SECRET deve ter pelo menos 32 caracteres"),
     CORS_ORIGIN: import_zod.z.url(),
     RATE_LIMIT_MAX: import_zod.z.coerce.number().default(100),
@@ -601,7 +601,7 @@ var config = {
   "clientVersion": "7.8.0",
   "engineVersion": "3c6e192761c0362d496ed980de936e2f3cebcd3a",
   "activeProvider": "postgresql",
-  "inlineSchema": 'generator client {\n  provider = "prisma-client"\n  output   = "../generated/prisma"\n}\n\ndatasource db {\n  provider = "postgresql"\n}\n\nenum ContractFrequency {\n  MONTHLY\n  BIMONTHLY\n  QUARTERLY\n  SEMIANNUAL\n  YEARLY\n}\n\nenum ContractStatus {\n  ACTIVE\n  ABOUT_TO_EXPIRE\n  EXPIRED\n  CANCELLED\n}\n\nenum ServiceStatus {\n  SCHEDULED\n  IN_PROGRESS\n  COMPLETED\n  CONFIRMED\n  CANCELLED\n}\n\nenum UserRole {\n  OWNER\n  ADMIN\n  TECHNICIAN\n}\n\nenum ServiceType {\n  AIR_CONDITIONING\n  PEST_CONTROL\n  CLEANING\n  BUILDING_MAINTENANCE\n  OTHER\n}\n\nenum CompanyNiche {\n  GENERAL\n  HVAC\n  PEST_CONTROL\n  CLEANING\n  BUILDING_MAINTENANCE\n  OTHER\n}\n\nenum CompanyPlan {\n  FREE\n  STARTER\n  PRO\n  BUSINESS\n}\n\nmodel Company {\n  id                String       @id @default(uuid())\n  name              String\n  fantasyName       String?      @map("fantasy_name")\n  document          String?\n  email             String?\n  phone             String?\n  niche             CompanyNiche @default(GENERAL)\n  plan              CompanyPlan  @default(FREE)\n  logoUrl           String?      @map("logo_url")\n  address           Json?\n  isActive          Boolean      @default(true) @map("is_active")\n  dataConsentAt     DateTime?    @map("data_consent_at")\n  trialEndsAt       DateTime?    @map("trial_ends_at")\n  lastServiceNumber Int          @default(0) @map("last_service_number")\n  createdAt         DateTime     @default(now()) @map("created_at")\n  updatedAt         DateTime     @updatedAt @map("updated_at")\n\n  users     User[]\n  customers Customer[]\n  contracts Contract[]\n  services  Service[]\n  auditLogs AuditLog[]\n  employees Employee[]\n\n  @@index([document])\n  @@index([plan])\n  @@map("companies")\n}\n\nmodel User {\n  id                     String     @id @default(uuid())\n  companyId              String     @map("company_id")\n  name                   String\n  email                  String     @unique\n  passwordHash           String     @map("password_hash")\n  role                   UserRole   @default(OWNER)\n  isActive               Boolean    @default(true) @map("is_active")\n  lastLoginAt            DateTime?  @map("last_login_at")\n  refreshTokenHash       String?    @map("refresh_token_hash")\n  resetPasswordToken     String?    @map("reset_password_token")\n  resetPasswordExpiresAt DateTime?  @map("reset_password_expires_at")\n  createdAt              DateTime   @default(now()) @map("created_at")\n  updatedAt              DateTime   @updatedAt @map("updated_at")\n  deletedAt              DateTime?  @map("deleted_at")\n  auditLogs              AuditLog[]\n\n  company Company @relation(fields: [companyId], references: [id])\n\n  @@index([companyId])\n  @@index([companyId, role])\n  @@index([companyId, isActive])\n  @@map("users")\n}\n\nmodel Employee {\n  id        String    @id @default(uuid())\n  companyId String    @map("company_id")\n  name      String\n  email     String?\n  phone     String?\n  isActive  Boolean   @default(true) @map("is_active")\n  createdAt DateTime  @default(now()) @map("created_at")\n  updatedAt DateTime  @updatedAt @map("updated_at")\n  deletedAt DateTime? @map("deleted_at")\n  services  Service[]\n\n  company Company @relation(fields: [companyId], references: [id])\n\n  @@index([companyId])\n  @@index([companyId, isActive])\n  @@map("employees")\n}\n\nmodel Customer {\n  id           String      @id @default(uuid())\n  companyId    String      @map("company_id")\n  name         String\n  fantasyName  String?     @map("fantasy_name")\n  email        String?\n  phone        String?\n  document     String?\n  documentType String      @default("CNPJ") @map("document_type")\n  address      Json?\n  notes        String?\n  isActive     Boolean     @default(true) @map("is_active")\n  createdAt    DateTime    @default(now()) @map("created_at")\n  updatedAt    DateTime    @updatedAt @map("updated_at")\n  deletedAt    DateTime?   @map("deleted_at")\n  contracts    Contract[]\n  services     Service[]\n  equipment    Equipment[]\n\n  company Company @relation(fields: [companyId], references: [id])\n\n  @@unique([companyId, document])\n  @@index([companyId])\n  @@index([companyId, name])\n  @@index([companyId, phone])\n  @@index([companyId, document])\n  @@index([companyId, isActive])\n  @@map("customers")\n}\n\nmodel Contract {\n  id              String            @id @default(uuid())\n  companyId       String            @map("company_id")\n  customerId      String            @map("customer_id")\n  serviceType     ServiceType?      @map("service_type")\n  frequency       ContractFrequency\n  amount          Decimal           @db.Decimal(10, 2)\n  startDate       DateTime          @map("start_date")\n  endDate         DateTime          @map("end_date")\n  nextServiceDate DateTime?         @map("next_service_date")\n  status          ContractStatus    @default(ACTIVE)\n  notes           String?\n  renewCounter    Int               @default(0) @map("renew_counter")\n  lastRenewedAt   DateTime?         @map("last_renewed_at")\n  createdAt       DateTime          @default(now()) @map("created_at")\n  updatedAt       DateTime          @updatedAt @map("updated_at")\n  deletedAt       DateTime?         @map("deleted_at")\n  services        Service[]\n\n  company  Company  @relation(fields: [companyId], references: [id])\n  customer Customer @relation(fields: [customerId], references: [id])\n\n  @@index([companyId])\n  @@index([companyId, status])\n  @@index([companyId, nextServiceDate])\n  @@index([companyId, endDate])\n  @@index([companyId, frequency])\n  @@map("contracts")\n}\n\nmodel Service {\n  id                         String             @id @default(uuid())\n  serviceNumber              Int                @map("service_number")\n  companyId                  String             @map("company_id")\n  contractId                 String?            @map("contract_id")\n  customerId                 String             @map("customer_id")\n  serviceType                ServiceType?       @map("service_type")\n  scheduledAt                DateTime           @map("scheduled_at")\n  completedDate              DateTime?          @map("completed_date")\n  status                     ServiceStatus      @default(SCHEDULED)\n  amount                     Decimal?           @db.Decimal(10, 2)\n  isPaid                     Boolean            @default(false) @map("is_paid")\n  employeeId                 String?            @map("employee_id")\n  notes                      String?\n  executionNotes             String?            @map("execution_notes")\n  reportUrl                  String?            @map("report_url")\n  durationMinutes            Int?               @map("duration_minutes")\n  confirmationToken          String?            @unique @map("confirmation_token")\n  confirmationTokenExpiresAt DateTime?          @map("confirmation_token_expires_at")\n  confirmedAt                DateTime?          @map("confirmed_at")\n  confirmedIp                String?            @map("confirmed_ip")\n  confirmedUserAgent         String?            @map("confirmed_user_agent")\n  cancelledReason            String?            @map("cancelled_reason")\n  createdAt                  DateTime           @default(now()) @map("created_at")\n  updatedAt                  DateTime           @updatedAt @map("updated_at")\n  deletedAt                  DateTime?          @map("deleted_at")\n  equipment                  ServiceEquipment[]\n  photos                     ServicePhoto[]\n\n  company  Company   @relation(fields: [companyId], references: [id])\n  contract Contract? @relation(fields: [contractId], references: [id])\n  customer Customer  @relation(fields: [customerId], references: [id])\n  employee Employee? @relation(fields: [employeeId], references: [id])\n\n  @@unique([companyId, serviceNumber])\n  @@index([companyId])\n  @@index([companyId, scheduledAt])\n  @@index([companyId, status])\n  @@index([companyId, employeeId])\n  @@index([companyId, completedDate])\n  @@map("services")\n}\n\nmodel AuditLog {\n  id         String   @id @default(uuid())\n  companyId  String   @map("company_id")\n  userId     String?  @map("user_id")\n  entityType String   @map("entity_type")\n  entityId   String   @map("entity_id")\n  action     String\n  oldData    Json?    @map("old_data")\n  newData    Json?    @map("new_data")\n  createdAt  DateTime @default(now()) @map("created_at")\n\n  company Company @relation(fields: [companyId], references: [id])\n  user    User?   @relation(fields: [userId], references: [id])\n\n  @@index([companyId])\n  @@index([companyId, entityType])\n  @@index([companyId, userId])\n  @@index([companyId, createdAt])\n  @@map("audit_logs")\n}\n\nmodel Equipment {\n  id           String    @id @default(uuid())\n  companyId    String    @map("company_id")\n  customerId   String    @map("customer_id")\n  type         String\n  brand        String?\n  model        String?\n  capacity     String?\n  serialNumber String?   @map("serial_number")\n  location     String?\n  installedAt  DateTime? @map("installed_at")\n  notes        String?\n  isActive     Boolean   @default(true) @map("is_active")\n  deletedAt    DateTime? @map("deleted_at")\n  createdAt    DateTime  @default(now()) @map("created_at")\n  updatedAt    DateTime  @updatedAt @map("updated_at")\n\n  customer         Customer           @relation(fields: [customerId], references: [id])\n  serviceEquipment ServiceEquipment[]\n\n  @@index([companyId])\n  @@index([customerId])\n  @@index([companyId, type])\n  @@index([companyId, isActive])\n  @@map("equipment")\n}\n\nmodel ServiceEquipment {\n  id          String  @id @default(uuid())\n  serviceId   String  @map("service_id")\n  equipmentId String  @map("equipment_id")\n  notes       String?\n\n  service   Service   @relation(fields: [serviceId], references: [id])\n  equipment Equipment @relation(fields: [equipmentId], references: [id])\n\n  @@unique([serviceId, equipmentId])\n  @@map("service_equipment")\n}\n\nmodel ServicePhoto {\n  id        String   @id @default(uuid())\n  serviceId String   @map("service_id")\n  url       String\n  caption   String?\n  createdAt DateTime @default(now()) @map("created_at")\n\n  service Service @relation(fields: [serviceId], references: [id])\n\n  @@index([serviceId])\n  @@index([serviceId, url])\n  @@map("service_photos")\n}\n',
+  "inlineSchema": 'generator client {\n  provider = "prisma-client"\n  output   = "../generated/prisma"\n}\n\ndatasource db {\n  provider = "postgresql"\n}\n\nmodel Company {\n  id                String     @id @default(uuid())\n  name              String\n  document          String?\n  logoUrl           String?    @map("logo_url")\n  lastServiceNumber Int        @default(0) @map("last_service_number")\n  createdAt         DateTime   @default(now()) @map("created_at")\n  updatedAt         DateTime   @updatedAt @map("updated_at")\n  fantasyName       String?    @map("fantasy_name")\n  email             String?\n  phone             String?\n  niche             String     @default("GENERAL")\n  plan              String     @default("FREE")\n  address           Json?\n  isActive          Boolean    @default(true) @map("is_active")\n  dataConsentAt     DateTime?  @map("data_consent_at")\n  trialEndsAt       DateTime?  @map("trial_ends_at")\n  auditLogs         AuditLog[]\n  contracts         Contract[]\n  customers         Customer[]\n  employees         Employee[]\n  services          Service[]\n  users             User[]\n\n  @@index([document])\n  @@map("companies")\n}\n\nmodel User {\n  id                     String     @id @default(uuid())\n  companyId              String     @map("company_id")\n  name                   String\n  email                  String     @unique\n  passwordHash           String     @map("password_hash")\n  role                   UserRole   @default(OWNER)\n  createdAt              DateTime   @default(now()) @map("created_at")\n  updatedAt              DateTime   @updatedAt @map("updated_at")\n  isActive               Boolean    @default(true) @map("is_active")\n  lastLoginAt            DateTime?  @map("last_login_at")\n  refreshTokenHash       String?    @map("refresh_token_hash")\n  resetPasswordToken     String?    @map("reset_password_token")\n  resetPasswordExpiresAt DateTime?  @map("reset_password_expires_at")\n  deletedAt              DateTime?  @map("deleted_at")\n  auditLogs              AuditLog[]\n  company                Company    @relation(fields: [companyId], references: [id])\n\n  @@index([companyId])\n  @@map("users")\n}\n\nmodel Employee {\n  id        String    @id @default(uuid())\n  companyId String    @map("company_id")\n  name      String\n  email     String?\n  phone     String?\n  isActive  Boolean   @default(true) @map("is_active")\n  createdAt DateTime  @default(now()) @map("created_at")\n  updatedAt DateTime  @updatedAt @map("updated_at")\n  deletedAt DateTime? @map("deleted_at")\n  company   Company   @relation(fields: [companyId], references: [id])\n  services  Service[]\n\n  @@index([companyId])\n  @@map("employees")\n}\n\nmodel Customer {\n  id           String      @id @default(uuid())\n  companyId    String      @map("company_id")\n  name         String\n  email        String?\n  phone        String?\n  document     String?\n  address      Json?\n  notes        String?\n  isActive     Boolean     @default(true) @map("is_active")\n  createdAt    DateTime    @default(now()) @map("created_at")\n  updatedAt    DateTime    @updatedAt @map("updated_at")\n  deletedAt    DateTime?   @map("deleted_at")\n  fantasyName  String?     @map("fantasy_name")\n  documentType String      @default("CNPJ") @map("document_type")\n  contracts    Contract[]\n  company      Company     @relation(fields: [companyId], references: [id])\n  equipment    Equipment[]\n  services     Service[]\n\n  @@unique([companyId, document])\n  @@index([companyId])\n  @@index([companyId, name])\n  @@index([companyId, phone])\n  @@index([companyId, document])\n  @@map("customers")\n}\n\nmodel Contract {\n  id              String            @id @default(uuid())\n  companyId       String            @map("company_id")\n  customerId      String            @map("customer_id")\n  frequency       ContractFrequency\n  amount          Decimal           @db.Decimal(10, 2)\n  startDate       DateTime          @map("start_date")\n  endDate         DateTime          @map("end_date")\n  nextServiceDate DateTime?         @map("next_service_date")\n  status          ContractStatus    @default(ACTIVE)\n  notes           String?\n  renewCounter    Int               @default(0) @map("renew_counter")\n  lastRenewedAt   DateTime?         @map("last_renewed_at")\n  createdAt       DateTime          @default(now()) @map("created_at")\n  updatedAt       DateTime          @updatedAt @map("updated_at")\n  deletedAt       DateTime?         @map("deleted_at")\n  company         Company           @relation(fields: [companyId], references: [id])\n  customer        Customer          @relation(fields: [customerId], references: [id])\n  services        Service[]\n\n  @@index([companyId])\n  @@index([companyId, status])\n  @@index([companyId, nextServiceDate])\n  @@map("contracts")\n}\n\nmodel Service {\n  id                         String             @id @default(uuid())\n  serviceNumber              Int                @map("service_number")\n  companyId                  String             @map("company_id")\n  contractId                 String?            @map("contract_id")\n  customerId                 String             @map("customer_id")\n  scheduledAt                DateTime           @map("scheduled_at")\n  completedDate              DateTime?          @map("completed_date")\n  status                     ServiceStatus      @default(SCHEDULED)\n  amount                     Decimal?           @db.Decimal(10, 2)\n  isPaid                     Boolean            @default(false) @map("is_paid")\n  employeeId                 String?            @map("employee_id")\n  notes                      String?\n  estimatedDurationMinutes   Int?               @map("estimated_duration_minutes")\n  durationMinutes            Int?               @map("duration_minutes")\n  createdAt                  DateTime           @default(now()) @map("created_at")\n  updatedAt                  DateTime           @updatedAt @map("updated_at")\n  deletedAt                  DateTime?          @map("deleted_at")\n  serviceType                String?            @map("service_type")\n  executionNotes             String?            @map("execution_notes")\n  reportUrl                  String?            @map("report_url")\n  confirmationToken          String?            @unique @map("confirmation_token")\n  confirmationTokenExpiresAt DateTime?          @map("confirmation_token_expires_at")\n  confirmedAt                DateTime?          @map("confirmed_at")\n  confirmedIp                String?            @map("confirmed_ip")\n  confirmedUserAgent         String?            @map("confirmed_user_agent")\n  confirmedName              String?            @map("confirmed_name")\n  confirmedDocument          String?            @map("confirmed_document")\n  confirmedDocumentType      String?            @map("confirmed_document_type")\n  cancelledReason            String?            @map("cancelled_reason")\n  equipment                  ServiceEquipment[]\n  photos                     ServicePhoto[]\n  company                    Company            @relation(fields: [companyId], references: [id])\n  contract                   Contract?          @relation(fields: [contractId], references: [id])\n  customer                   Customer           @relation(fields: [customerId], references: [id])\n  employee                   Employee?          @relation(fields: [employeeId], references: [id])\n\n  @@unique([companyId, serviceNumber])\n  @@index([companyId])\n  @@index([companyId, scheduledAt])\n  @@index([companyId, status])\n  @@map("services")\n}\n\nmodel AuditLog {\n  id         String   @id @default(uuid())\n  companyId  String   @map("company_id")\n  userId     String?  @map("user_id")\n  entityType String   @map("entity_type")\n  entityId   String   @map("entity_id")\n  action     String\n  oldData    Json?    @map("old_data")\n  newData    Json?    @map("new_data")\n  createdAt  DateTime @default(now()) @map("created_at")\n  company    Company  @relation(fields: [companyId], references: [id])\n  user       User?    @relation(fields: [userId], references: [id])\n\n  @@index([companyId])\n  @@map("audit_logs")\n}\n\nmodel Equipment {\n  id               String             @id @default(uuid())\n  companyId        String             @map("company_id")\n  customerId       String             @map("customer_id")\n  type             String\n  brand            String?\n  model            String?\n  capacity         String?\n  serialNumber     String?            @map("serial_number")\n  location         String?\n  installedAt      DateTime?          @map("installed_at")\n  notes            String?\n  isActive         Boolean            @default(true) @map("is_active")\n  deletedAt        DateTime?          @map("deleted_at")\n  createdAt        DateTime           @default(now()) @map("created_at")\n  updatedAt        DateTime           @updatedAt @map("updated_at")\n  customer         Customer           @relation(fields: [customerId], references: [id])\n  serviceEquipment ServiceEquipment[]\n\n  @@index([companyId])\n  @@index([customerId])\n  @@map("equipment")\n}\n\nmodel ServiceEquipment {\n  id          String    @id @default(uuid())\n  serviceId   String    @map("service_id")\n  equipmentId String    @map("equipment_id")\n  notes       String?\n  equipment   Equipment @relation(fields: [equipmentId], references: [id])\n  service     Service   @relation(fields: [serviceId], references: [id])\n\n  @@unique([serviceId, equipmentId])\n  @@map("service_equipment")\n}\n\nmodel ServicePhoto {\n  id        String   @id @default(uuid())\n  serviceId String   @map("service_id")\n  url       String\n  caption   String?\n  createdAt DateTime @default(now()) @map("created_at")\n  service   Service  @relation(fields: [serviceId], references: [id])\n\n  @@index([serviceId])\n  @@map("service_photos")\n}\n\nenum ContractFrequency {\n  MONTHLY\n  BIMONTHLY\n  QUARTERLY\n  SEMIANNUAL\n  YEARLY\n}\n\nenum ContractStatus {\n  ACTIVE\n  ABOUT_TO_EXPIRE\n  EXPIRED\n  CANCELLED\n  PAUSED\n}\n\nenum ServiceStatus {\n  SCHEDULED\n  IN_PROGRESS\n  COMPLETED\n  CANCELLED\n  NOT_FOUND\n  RESCHEDULED\n  CONFIRMED\n}\n\nenum UserRole {\n  OWNER\n  ADMIN\n  TECHNICIAN\n}\n',
   "runtimeDataModel": {
     "models": {},
     "enums": {},
@@ -612,10 +612,10 @@ var config = {
     "graph": ""
   }
 };
-config.runtimeDataModel = JSON.parse('{"models":{"Company":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"fantasyName","kind":"scalar","type":"String","dbName":"fantasy_name"},{"name":"document","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"phone","kind":"scalar","type":"String"},{"name":"niche","kind":"enum","type":"CompanyNiche"},{"name":"plan","kind":"enum","type":"CompanyPlan"},{"name":"logoUrl","kind":"scalar","type":"String","dbName":"logo_url"},{"name":"address","kind":"scalar","type":"Json"},{"name":"isActive","kind":"scalar","type":"Boolean","dbName":"is_active"},{"name":"dataConsentAt","kind":"scalar","type":"DateTime","dbName":"data_consent_at"},{"name":"trialEndsAt","kind":"scalar","type":"DateTime","dbName":"trial_ends_at"},{"name":"lastServiceNumber","kind":"scalar","type":"Int","dbName":"last_service_number"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"users","kind":"object","type":"User","relationName":"CompanyToUser"},{"name":"customers","kind":"object","type":"Customer","relationName":"CompanyToCustomer"},{"name":"contracts","kind":"object","type":"Contract","relationName":"CompanyToContract"},{"name":"services","kind":"object","type":"Service","relationName":"CompanyToService"},{"name":"auditLogs","kind":"object","type":"AuditLog","relationName":"AuditLogToCompany"},{"name":"employees","kind":"object","type":"Employee","relationName":"CompanyToEmployee"}],"dbName":"companies"},"User":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"name","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"passwordHash","kind":"scalar","type":"String","dbName":"password_hash"},{"name":"role","kind":"enum","type":"UserRole"},{"name":"isActive","kind":"scalar","type":"Boolean","dbName":"is_active"},{"name":"lastLoginAt","kind":"scalar","type":"DateTime","dbName":"last_login_at"},{"name":"refreshTokenHash","kind":"scalar","type":"String","dbName":"refresh_token_hash"},{"name":"resetPasswordToken","kind":"scalar","type":"String","dbName":"reset_password_token"},{"name":"resetPasswordExpiresAt","kind":"scalar","type":"DateTime","dbName":"reset_password_expires_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"auditLogs","kind":"object","type":"AuditLog","relationName":"AuditLogToUser"},{"name":"company","kind":"object","type":"Company","relationName":"CompanyToUser"}],"dbName":"users"},"Employee":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"name","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"phone","kind":"scalar","type":"String"},{"name":"isActive","kind":"scalar","type":"Boolean","dbName":"is_active"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"services","kind":"object","type":"Service","relationName":"EmployeeToService"},{"name":"company","kind":"object","type":"Company","relationName":"CompanyToEmployee"}],"dbName":"employees"},"Customer":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"name","kind":"scalar","type":"String"},{"name":"fantasyName","kind":"scalar","type":"String","dbName":"fantasy_name"},{"name":"email","kind":"scalar","type":"String"},{"name":"phone","kind":"scalar","type":"String"},{"name":"document","kind":"scalar","type":"String"},{"name":"documentType","kind":"scalar","type":"String","dbName":"document_type"},{"name":"address","kind":"scalar","type":"Json"},{"name":"notes","kind":"scalar","type":"String"},{"name":"isActive","kind":"scalar","type":"Boolean","dbName":"is_active"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"contracts","kind":"object","type":"Contract","relationName":"ContractToCustomer"},{"name":"services","kind":"object","type":"Service","relationName":"CustomerToService"},{"name":"equipment","kind":"object","type":"Equipment","relationName":"CustomerToEquipment"},{"name":"company","kind":"object","type":"Company","relationName":"CompanyToCustomer"}],"dbName":"customers"},"Contract":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"customerId","kind":"scalar","type":"String","dbName":"customer_id"},{"name":"serviceType","kind":"enum","type":"ServiceType","dbName":"service_type"},{"name":"frequency","kind":"enum","type":"ContractFrequency"},{"name":"amount","kind":"scalar","type":"Decimal"},{"name":"startDate","kind":"scalar","type":"DateTime","dbName":"start_date"},{"name":"endDate","kind":"scalar","type":"DateTime","dbName":"end_date"},{"name":"nextServiceDate","kind":"scalar","type":"DateTime","dbName":"next_service_date"},{"name":"status","kind":"enum","type":"ContractStatus"},{"name":"notes","kind":"scalar","type":"String"},{"name":"renewCounter","kind":"scalar","type":"Int","dbName":"renew_counter"},{"name":"lastRenewedAt","kind":"scalar","type":"DateTime","dbName":"last_renewed_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"services","kind":"object","type":"Service","relationName":"ContractToService"},{"name":"company","kind":"object","type":"Company","relationName":"CompanyToContract"},{"name":"customer","kind":"object","type":"Customer","relationName":"ContractToCustomer"}],"dbName":"contracts"},"Service":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"serviceNumber","kind":"scalar","type":"Int","dbName":"service_number"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"contractId","kind":"scalar","type":"String","dbName":"contract_id"},{"name":"customerId","kind":"scalar","type":"String","dbName":"customer_id"},{"name":"serviceType","kind":"enum","type":"ServiceType","dbName":"service_type"},{"name":"scheduledAt","kind":"scalar","type":"DateTime","dbName":"scheduled_at"},{"name":"completedDate","kind":"scalar","type":"DateTime","dbName":"completed_date"},{"name":"status","kind":"enum","type":"ServiceStatus"},{"name":"amount","kind":"scalar","type":"Decimal"},{"name":"isPaid","kind":"scalar","type":"Boolean","dbName":"is_paid"},{"name":"employeeId","kind":"scalar","type":"String","dbName":"employee_id"},{"name":"notes","kind":"scalar","type":"String"},{"name":"executionNotes","kind":"scalar","type":"String","dbName":"execution_notes"},{"name":"reportUrl","kind":"scalar","type":"String","dbName":"report_url"},{"name":"durationMinutes","kind":"scalar","type":"Int","dbName":"duration_minutes"},{"name":"confirmationToken","kind":"scalar","type":"String","dbName":"confirmation_token"},{"name":"confirmationTokenExpiresAt","kind":"scalar","type":"DateTime","dbName":"confirmation_token_expires_at"},{"name":"confirmedAt","kind":"scalar","type":"DateTime","dbName":"confirmed_at"},{"name":"confirmedIp","kind":"scalar","type":"String","dbName":"confirmed_ip"},{"name":"confirmedUserAgent","kind":"scalar","type":"String","dbName":"confirmed_user_agent"},{"name":"cancelledReason","kind":"scalar","type":"String","dbName":"cancelled_reason"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"equipment","kind":"object","type":"ServiceEquipment","relationName":"ServiceToServiceEquipment"},{"name":"photos","kind":"object","type":"ServicePhoto","relationName":"ServiceToServicePhoto"},{"name":"company","kind":"object","type":"Company","relationName":"CompanyToService"},{"name":"contract","kind":"object","type":"Contract","relationName":"ContractToService"},{"name":"customer","kind":"object","type":"Customer","relationName":"CustomerToService"},{"name":"employee","kind":"object","type":"Employee","relationName":"EmployeeToService"}],"dbName":"services"},"AuditLog":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"userId","kind":"scalar","type":"String","dbName":"user_id"},{"name":"entityType","kind":"scalar","type":"String","dbName":"entity_type"},{"name":"entityId","kind":"scalar","type":"String","dbName":"entity_id"},{"name":"action","kind":"scalar","type":"String"},{"name":"oldData","kind":"scalar","type":"Json","dbName":"old_data"},{"name":"newData","kind":"scalar","type":"Json","dbName":"new_data"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"company","kind":"object","type":"Company","relationName":"AuditLogToCompany"},{"name":"user","kind":"object","type":"User","relationName":"AuditLogToUser"}],"dbName":"audit_logs"},"Equipment":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"customerId","kind":"scalar","type":"String","dbName":"customer_id"},{"name":"type","kind":"scalar","type":"String"},{"name":"brand","kind":"scalar","type":"String"},{"name":"model","kind":"scalar","type":"String"},{"name":"capacity","kind":"scalar","type":"String"},{"name":"serialNumber","kind":"scalar","type":"String","dbName":"serial_number"},{"name":"location","kind":"scalar","type":"String"},{"name":"installedAt","kind":"scalar","type":"DateTime","dbName":"installed_at"},{"name":"notes","kind":"scalar","type":"String"},{"name":"isActive","kind":"scalar","type":"Boolean","dbName":"is_active"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"customer","kind":"object","type":"Customer","relationName":"CustomerToEquipment"},{"name":"serviceEquipment","kind":"object","type":"ServiceEquipment","relationName":"EquipmentToServiceEquipment"}],"dbName":"equipment"},"ServiceEquipment":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"serviceId","kind":"scalar","type":"String","dbName":"service_id"},{"name":"equipmentId","kind":"scalar","type":"String","dbName":"equipment_id"},{"name":"notes","kind":"scalar","type":"String"},{"name":"service","kind":"object","type":"Service","relationName":"ServiceToServiceEquipment"},{"name":"equipment","kind":"object","type":"Equipment","relationName":"EquipmentToServiceEquipment"}],"dbName":"service_equipment"},"ServicePhoto":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"serviceId","kind":"scalar","type":"String","dbName":"service_id"},{"name":"url","kind":"scalar","type":"String"},{"name":"caption","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"service","kind":"object","type":"Service","relationName":"ServiceToServicePhoto"}],"dbName":"service_photos"}},"enums":{},"types":{}}');
+config.runtimeDataModel = JSON.parse('{"models":{"Company":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"document","kind":"scalar","type":"String"},{"name":"logoUrl","kind":"scalar","type":"String","dbName":"logo_url"},{"name":"lastServiceNumber","kind":"scalar","type":"Int","dbName":"last_service_number"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"fantasyName","kind":"scalar","type":"String","dbName":"fantasy_name"},{"name":"email","kind":"scalar","type":"String"},{"name":"phone","kind":"scalar","type":"String"},{"name":"niche","kind":"scalar","type":"String"},{"name":"plan","kind":"scalar","type":"String"},{"name":"address","kind":"scalar","type":"Json"},{"name":"isActive","kind":"scalar","type":"Boolean","dbName":"is_active"},{"name":"dataConsentAt","kind":"scalar","type":"DateTime","dbName":"data_consent_at"},{"name":"trialEndsAt","kind":"scalar","type":"DateTime","dbName":"trial_ends_at"},{"name":"auditLogs","kind":"object","type":"AuditLog","relationName":"AuditLogToCompany"},{"name":"contracts","kind":"object","type":"Contract","relationName":"CompanyToContract"},{"name":"customers","kind":"object","type":"Customer","relationName":"CompanyToCustomer"},{"name":"employees","kind":"object","type":"Employee","relationName":"CompanyToEmployee"},{"name":"services","kind":"object","type":"Service","relationName":"CompanyToService"},{"name":"users","kind":"object","type":"User","relationName":"CompanyToUser"}],"dbName":"companies"},"User":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"name","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"passwordHash","kind":"scalar","type":"String","dbName":"password_hash"},{"name":"role","kind":"enum","type":"UserRole"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"isActive","kind":"scalar","type":"Boolean","dbName":"is_active"},{"name":"lastLoginAt","kind":"scalar","type":"DateTime","dbName":"last_login_at"},{"name":"refreshTokenHash","kind":"scalar","type":"String","dbName":"refresh_token_hash"},{"name":"resetPasswordToken","kind":"scalar","type":"String","dbName":"reset_password_token"},{"name":"resetPasswordExpiresAt","kind":"scalar","type":"DateTime","dbName":"reset_password_expires_at"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"auditLogs","kind":"object","type":"AuditLog","relationName":"AuditLogToUser"},{"name":"company","kind":"object","type":"Company","relationName":"CompanyToUser"}],"dbName":"users"},"Employee":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"name","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"phone","kind":"scalar","type":"String"},{"name":"isActive","kind":"scalar","type":"Boolean","dbName":"is_active"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"company","kind":"object","type":"Company","relationName":"CompanyToEmployee"},{"name":"services","kind":"object","type":"Service","relationName":"EmployeeToService"}],"dbName":"employees"},"Customer":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"name","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"phone","kind":"scalar","type":"String"},{"name":"document","kind":"scalar","type":"String"},{"name":"address","kind":"scalar","type":"Json"},{"name":"notes","kind":"scalar","type":"String"},{"name":"isActive","kind":"scalar","type":"Boolean","dbName":"is_active"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"fantasyName","kind":"scalar","type":"String","dbName":"fantasy_name"},{"name":"documentType","kind":"scalar","type":"String","dbName":"document_type"},{"name":"contracts","kind":"object","type":"Contract","relationName":"ContractToCustomer"},{"name":"company","kind":"object","type":"Company","relationName":"CompanyToCustomer"},{"name":"equipment","kind":"object","type":"Equipment","relationName":"CustomerToEquipment"},{"name":"services","kind":"object","type":"Service","relationName":"CustomerToService"}],"dbName":"customers"},"Contract":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"customerId","kind":"scalar","type":"String","dbName":"customer_id"},{"name":"frequency","kind":"enum","type":"ContractFrequency"},{"name":"amount","kind":"scalar","type":"Decimal"},{"name":"startDate","kind":"scalar","type":"DateTime","dbName":"start_date"},{"name":"endDate","kind":"scalar","type":"DateTime","dbName":"end_date"},{"name":"nextServiceDate","kind":"scalar","type":"DateTime","dbName":"next_service_date"},{"name":"status","kind":"enum","type":"ContractStatus"},{"name":"notes","kind":"scalar","type":"String"},{"name":"renewCounter","kind":"scalar","type":"Int","dbName":"renew_counter"},{"name":"lastRenewedAt","kind":"scalar","type":"DateTime","dbName":"last_renewed_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"company","kind":"object","type":"Company","relationName":"CompanyToContract"},{"name":"customer","kind":"object","type":"Customer","relationName":"ContractToCustomer"},{"name":"services","kind":"object","type":"Service","relationName":"ContractToService"}],"dbName":"contracts"},"Service":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"serviceNumber","kind":"scalar","type":"Int","dbName":"service_number"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"contractId","kind":"scalar","type":"String","dbName":"contract_id"},{"name":"customerId","kind":"scalar","type":"String","dbName":"customer_id"},{"name":"scheduledAt","kind":"scalar","type":"DateTime","dbName":"scheduled_at"},{"name":"completedDate","kind":"scalar","type":"DateTime","dbName":"completed_date"},{"name":"status","kind":"enum","type":"ServiceStatus"},{"name":"amount","kind":"scalar","type":"Decimal"},{"name":"isPaid","kind":"scalar","type":"Boolean","dbName":"is_paid"},{"name":"employeeId","kind":"scalar","type":"String","dbName":"employee_id"},{"name":"notes","kind":"scalar","type":"String"},{"name":"estimatedDurationMinutes","kind":"scalar","type":"Int","dbName":"estimated_duration_minutes"},{"name":"durationMinutes","kind":"scalar","type":"Int","dbName":"duration_minutes"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"serviceType","kind":"scalar","type":"String","dbName":"service_type"},{"name":"executionNotes","kind":"scalar","type":"String","dbName":"execution_notes"},{"name":"reportUrl","kind":"scalar","type":"String","dbName":"report_url"},{"name":"confirmationToken","kind":"scalar","type":"String","dbName":"confirmation_token"},{"name":"confirmationTokenExpiresAt","kind":"scalar","type":"DateTime","dbName":"confirmation_token_expires_at"},{"name":"confirmedAt","kind":"scalar","type":"DateTime","dbName":"confirmed_at"},{"name":"confirmedIp","kind":"scalar","type":"String","dbName":"confirmed_ip"},{"name":"confirmedUserAgent","kind":"scalar","type":"String","dbName":"confirmed_user_agent"},{"name":"confirmedName","kind":"scalar","type":"String","dbName":"confirmed_name"},{"name":"confirmedDocument","kind":"scalar","type":"String","dbName":"confirmed_document"},{"name":"confirmedDocumentType","kind":"scalar","type":"String","dbName":"confirmed_document_type"},{"name":"cancelledReason","kind":"scalar","type":"String","dbName":"cancelled_reason"},{"name":"equipment","kind":"object","type":"ServiceEquipment","relationName":"ServiceToServiceEquipment"},{"name":"photos","kind":"object","type":"ServicePhoto","relationName":"ServiceToServicePhoto"},{"name":"company","kind":"object","type":"Company","relationName":"CompanyToService"},{"name":"contract","kind":"object","type":"Contract","relationName":"ContractToService"},{"name":"customer","kind":"object","type":"Customer","relationName":"CustomerToService"},{"name":"employee","kind":"object","type":"Employee","relationName":"EmployeeToService"}],"dbName":"services"},"AuditLog":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"userId","kind":"scalar","type":"String","dbName":"user_id"},{"name":"entityType","kind":"scalar","type":"String","dbName":"entity_type"},{"name":"entityId","kind":"scalar","type":"String","dbName":"entity_id"},{"name":"action","kind":"scalar","type":"String"},{"name":"oldData","kind":"scalar","type":"Json","dbName":"old_data"},{"name":"newData","kind":"scalar","type":"Json","dbName":"new_data"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"company","kind":"object","type":"Company","relationName":"AuditLogToCompany"},{"name":"user","kind":"object","type":"User","relationName":"AuditLogToUser"}],"dbName":"audit_logs"},"Equipment":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"companyId","kind":"scalar","type":"String","dbName":"company_id"},{"name":"customerId","kind":"scalar","type":"String","dbName":"customer_id"},{"name":"type","kind":"scalar","type":"String"},{"name":"brand","kind":"scalar","type":"String"},{"name":"model","kind":"scalar","type":"String"},{"name":"capacity","kind":"scalar","type":"String"},{"name":"serialNumber","kind":"scalar","type":"String","dbName":"serial_number"},{"name":"location","kind":"scalar","type":"String"},{"name":"installedAt","kind":"scalar","type":"DateTime","dbName":"installed_at"},{"name":"notes","kind":"scalar","type":"String"},{"name":"isActive","kind":"scalar","type":"Boolean","dbName":"is_active"},{"name":"deletedAt","kind":"scalar","type":"DateTime","dbName":"deleted_at"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"updatedAt","kind":"scalar","type":"DateTime","dbName":"updated_at"},{"name":"customer","kind":"object","type":"Customer","relationName":"CustomerToEquipment"},{"name":"serviceEquipment","kind":"object","type":"ServiceEquipment","relationName":"EquipmentToServiceEquipment"}],"dbName":"equipment"},"ServiceEquipment":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"serviceId","kind":"scalar","type":"String","dbName":"service_id"},{"name":"equipmentId","kind":"scalar","type":"String","dbName":"equipment_id"},{"name":"notes","kind":"scalar","type":"String"},{"name":"equipment","kind":"object","type":"Equipment","relationName":"EquipmentToServiceEquipment"},{"name":"service","kind":"object","type":"Service","relationName":"ServiceToServiceEquipment"}],"dbName":"service_equipment"},"ServicePhoto":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"serviceId","kind":"scalar","type":"String","dbName":"service_id"},{"name":"url","kind":"scalar","type":"String"},{"name":"caption","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime","dbName":"created_at"},{"name":"service","kind":"object","type":"Service","relationName":"ServiceToServicePhoto"}],"dbName":"service_photos"}},"enums":{},"types":{}}');
 config.parameterizationSchema = {
-  strings: JSON.parse('["where","orderBy","cursor","company","user","auditLogs","_count","users","service","customer","serviceEquipment","equipment","photos","contract","services","employee","contracts","customers","employees","Company.findUnique","Company.findUniqueOrThrow","Company.findFirst","Company.findFirstOrThrow","Company.findMany","data","Company.createOne","Company.createMany","Company.createManyAndReturn","Company.updateOne","Company.updateMany","Company.updateManyAndReturn","create","update","Company.upsertOne","Company.deleteOne","Company.deleteMany","having","_avg","_sum","_min","_max","Company.groupBy","Company.aggregate","User.findUnique","User.findUniqueOrThrow","User.findFirst","User.findFirstOrThrow","User.findMany","User.createOne","User.createMany","User.createManyAndReturn","User.updateOne","User.updateMany","User.updateManyAndReturn","User.upsertOne","User.deleteOne","User.deleteMany","User.groupBy","User.aggregate","Employee.findUnique","Employee.findUniqueOrThrow","Employee.findFirst","Employee.findFirstOrThrow","Employee.findMany","Employee.createOne","Employee.createMany","Employee.createManyAndReturn","Employee.updateOne","Employee.updateMany","Employee.updateManyAndReturn","Employee.upsertOne","Employee.deleteOne","Employee.deleteMany","Employee.groupBy","Employee.aggregate","Customer.findUnique","Customer.findUniqueOrThrow","Customer.findFirst","Customer.findFirstOrThrow","Customer.findMany","Customer.createOne","Customer.createMany","Customer.createManyAndReturn","Customer.updateOne","Customer.updateMany","Customer.updateManyAndReturn","Customer.upsertOne","Customer.deleteOne","Customer.deleteMany","Customer.groupBy","Customer.aggregate","Contract.findUnique","Contract.findUniqueOrThrow","Contract.findFirst","Contract.findFirstOrThrow","Contract.findMany","Contract.createOne","Contract.createMany","Contract.createManyAndReturn","Contract.updateOne","Contract.updateMany","Contract.updateManyAndReturn","Contract.upsertOne","Contract.deleteOne","Contract.deleteMany","Contract.groupBy","Contract.aggregate","Service.findUnique","Service.findUniqueOrThrow","Service.findFirst","Service.findFirstOrThrow","Service.findMany","Service.createOne","Service.createMany","Service.createManyAndReturn","Service.updateOne","Service.updateMany","Service.updateManyAndReturn","Service.upsertOne","Service.deleteOne","Service.deleteMany","Service.groupBy","Service.aggregate","AuditLog.findUnique","AuditLog.findUniqueOrThrow","AuditLog.findFirst","AuditLog.findFirstOrThrow","AuditLog.findMany","AuditLog.createOne","AuditLog.createMany","AuditLog.createManyAndReturn","AuditLog.updateOne","AuditLog.updateMany","AuditLog.updateManyAndReturn","AuditLog.upsertOne","AuditLog.deleteOne","AuditLog.deleteMany","AuditLog.groupBy","AuditLog.aggregate","Equipment.findUnique","Equipment.findUniqueOrThrow","Equipment.findFirst","Equipment.findFirstOrThrow","Equipment.findMany","Equipment.createOne","Equipment.createMany","Equipment.createManyAndReturn","Equipment.updateOne","Equipment.updateMany","Equipment.updateManyAndReturn","Equipment.upsertOne","Equipment.deleteOne","Equipment.deleteMany","Equipment.groupBy","Equipment.aggregate","ServiceEquipment.findUnique","ServiceEquipment.findUniqueOrThrow","ServiceEquipment.findFirst","ServiceEquipment.findFirstOrThrow","ServiceEquipment.findMany","ServiceEquipment.createOne","ServiceEquipment.createMany","ServiceEquipment.createManyAndReturn","ServiceEquipment.updateOne","ServiceEquipment.updateMany","ServiceEquipment.updateManyAndReturn","ServiceEquipment.upsertOne","ServiceEquipment.deleteOne","ServiceEquipment.deleteMany","ServiceEquipment.groupBy","ServiceEquipment.aggregate","ServicePhoto.findUnique","ServicePhoto.findUniqueOrThrow","ServicePhoto.findFirst","ServicePhoto.findFirstOrThrow","ServicePhoto.findMany","ServicePhoto.createOne","ServicePhoto.createMany","ServicePhoto.createManyAndReturn","ServicePhoto.updateOne","ServicePhoto.updateMany","ServicePhoto.updateManyAndReturn","ServicePhoto.upsertOne","ServicePhoto.deleteOne","ServicePhoto.deleteMany","ServicePhoto.groupBy","ServicePhoto.aggregate","AND","OR","NOT","id","serviceId","url","caption","createdAt","equals","in","notIn","lt","lte","gt","gte","not","contains","startsWith","endsWith","equipmentId","notes","companyId","customerId","type","brand","model","capacity","serialNumber","location","installedAt","isActive","deletedAt","updatedAt","userId","entityType","entityId","action","oldData","newData","string_contains","string_starts_with","string_ends_with","array_starts_with","array_ends_with","array_contains","serviceNumber","contractId","ServiceType","serviceType","scheduledAt","completedDate","ServiceStatus","status","amount","isPaid","employeeId","executionNotes","reportUrl","durationMinutes","confirmationToken","confirmationTokenExpiresAt","confirmedAt","confirmedIp","confirmedUserAgent","cancelledReason","ContractFrequency","frequency","startDate","endDate","nextServiceDate","ContractStatus","renewCounter","lastRenewedAt","name","fantasyName","email","phone","document","documentType","address","passwordHash","UserRole","role","lastLoginAt","refreshTokenHash","resetPasswordToken","resetPasswordExpiresAt","CompanyNiche","niche","CompanyPlan","plan","logoUrl","dataConsentAt","trialEndsAt","lastServiceNumber","every","some","none","serviceId_equipmentId","companyId_serviceNumber","companyId_document","is","isNot","connectOrCreate","upsert","createMany","set","disconnect","delete","connect","updateMany","deleteMany","increment","decrement","multiply","divide"]'),
-  graph: "igZeoAEZBQAA7gIAIAcAAOoCACAOAADtAgAgEAAA7AIAIBEAAOsCACASAADvAgAguwEAAOACADC8AQAAQAAQvQEAAOACADC-AQEAAAABwgFAAOkCACHZASAA5gIAIdsBQADpAgAhhAIBAOECACGFAgEA4gIAIYYCAQDiAgAhhwIBAOICACGIAgEA4gIAIYoCAADlAgAgkwIAAOMCkwIilQIAAOQClQIilgIBAOICACGXAkAA5wIAIZgCQADnAgAhmQICAOgCACEBAAAAAQAgEwMAAPECACAFAADuAgAguwEAAIwDADC8AQAAAwAQvQEAAIwDADC-AQEA4QIAIcIBQADpAgAh0AEBAOECACHZASAA5gIAIdoBQADnAgAh2wFAAOkCACGEAgEA4QIAIYYCAQDhAgAhiwIBAOECACGNAgAAjQONAiKOAkAA5wIAIY8CAQDiAgAhkAIBAOICACGRAkAA5wIAIQcDAACnBQAgBQAApQUAINoBAACOAwAgjgIAAI4DACCPAgAAjgMAIJACAACOAwAgkQIAAI4DACATAwAA8QIAIAUAAO4CACC7AQAAjAMAMLwBAAADABC9AQAAjAMAML4BAQAAAAHCAUAA6QIAIdABAQDhAgAh2QEgAOYCACHaAUAA5wIAIdsBQADpAgAhhAIBAOECACGGAgEAAAABiwIBAOECACGNAgAAjQONAiKOAkAA5wIAIY8CAQDiAgAhkAIBAOICACGRAkAA5wIAIQMAAAADACABAAAEADACAAAFACAOAwAA8QIAIAQAAIsDACC7AQAAigMAMLwBAAAHABC9AQAAigMAML4BAQDhAgAhwgFAAOkCACHQAQEA4QIAIdwBAQDiAgAh3QEBAOECACHeAQEA4QIAId8BAQDhAgAh4AEAAOUCACDhAQAA5QIAIAUDAACnBQAgBAAAsAUAINwBAACOAwAg4AEAAI4DACDhAQAAjgMAIA4DAADxAgAgBAAAiwMAILsBAACKAwAwvAEAAAcAEL0BAACKAwAwvgEBAAAAAcIBQADpAgAh0AEBAOECACHcAQEA4gIAId0BAQDhAgAh3gEBAOECACHfAQEA4QIAIeABAADlAgAg4QEAAOUCACADAAAABwAgAQAACAAwAgAACQAgAQAAAAMAIAEAAAAHACAVAwAA8QIAIAsAAIkDACAOAADtAgAgEAAA7AIAILsBAACIAwAwvAEAAA0AEL0BAACIAwAwvgEBAOECACHCAUAA6QIAIc8BAQDiAgAh0AEBAOECACHZASAA5gIAIdoBQADnAgAh2wFAAOkCACGEAgEA4QIAIYUCAQDiAgAhhgIBAOICACGHAgEA4gIAIYgCAQDiAgAhiQIBAOECACGKAgAA5QIAIAsDAACnBQAgCwAArwUAIA4AAKQFACAQAACjBQAgzwEAAI4DACDaAQAAjgMAIIUCAACOAwAghgIAAI4DACCHAgAAjgMAIIgCAACOAwAgigIAAI4DACAWAwAA8QIAIAsAAIkDACAOAADtAgAgEAAA7AIAILsBAACIAwAwvAEAAA0AEL0BAACIAwAwvgEBAAAAAcIBQADpAgAhzwEBAOICACHQAQEA4QIAIdkBIADmAgAh2gFAAOcCACHbAUAA6QIAIYQCAQDhAgAhhQIBAOICACGGAgEA4gIAIYcCAQDiAgAhiAIBAOICACGJAgEA4QIAIYoCAADlAgAgnwIAAIcDACADAAAADQAgAQAADgAwAgAADwAgFgMAAPECACAJAADzAgAgDgAA7QIAILsBAACDAwAwvAEAABEAEL0BAACDAwAwvgEBAOECACHCAUAA6QIAIc8BAQDiAgAh0AEBAOECACHRAQEA4QIAIdoBQADnAgAh2wFAAOkCACHrAQAA_ALrASPvAQAAhgOCAiLwARAAhQMAIf0BAACEA_0BIv4BQADpAgAh_wFAAOkCACGAAkAA5wIAIYICAgDoAgAhgwJAAOcCACEIAwAApwUAIAkAAKgFACAOAACkBQAgzwEAAI4DACDaAQAAjgMAIOsBAACOAwAggAIAAI4DACCDAgAAjgMAIBYDAADxAgAgCQAA8wIAIA4AAO0CACC7AQAAgwMAMLwBAAARABC9AQAAgwMAML4BAQAAAAHCAUAA6QIAIc8BAQDiAgAh0AEBAOECACHRAQEA4QIAIdoBQADnAgAh2wFAAOkCACHrAQAA_ALrASPvAQAAhgOCAiLwARAAhQMAIf0BAACEA_0BIv4BQADpAgAh_wFAAOkCACGAAkAA5wIAIYICAgDoAgAhgwJAAOcCACEDAAAAEQAgAQAAEgAwAgAAEwAgIgMAAPECACAJAADzAgAgCwAA9AIAIAwAAIADACANAACBAwAgDwAAggMAILsBAAD7AgAwvAEAABUAEL0BAAD7AgAwvgEBAOECACHCAUAA6QIAIc8BAQDiAgAh0AEBAOECACHRAQEA4QIAIdoBQADnAgAh2wFAAOkCACHoAQIA6AIAIekBAQDiAgAh6wEAAPwC6wEj7AFAAOkCACHtAUAA5wIAIe8BAAD9Au8BIvABEAD-AgAh8QEgAOYCACHyAQEA4gIAIfMBAQDiAgAh9AEBAOICACH1AQIA_wIAIfYBAQDiAgAh9wFAAOcCACH4AUAA5wIAIfkBAQDiAgAh-gEBAOICACH7AQEA4gIAIRYDAACnBQAgCQAAqAUAIAsAAKkFACAMAACsBQAgDQAArQUAIA8AAK4FACDPAQAAjgMAINoBAACOAwAg6QEAAI4DACDrAQAAjgMAIO0BAACOAwAg8AEAAI4DACDyAQAAjgMAIPMBAACOAwAg9AEAAI4DACD1AQAAjgMAIPYBAACOAwAg9wEAAI4DACD4AQAAjgMAIPkBAACOAwAg-gEAAI4DACD7AQAAjgMAICMDAADxAgAgCQAA8wIAIAsAAPQCACAMAACAAwAgDQAAgQMAIA8AAIIDACC7AQAA-wIAMLwBAAAVABC9AQAA-wIAML4BAQAAAAHCAUAA6QIAIc8BAQDiAgAh0AEBAOECACHRAQEA4QIAIdoBQADnAgAh2wFAAOkCACHoAQIA6AIAIekBAQDiAgAh6wEAAPwC6wEj7AFAAOkCACHtAUAA5wIAIe8BAAD9Au8BIvABEAD-AgAh8QEgAOYCACHyAQEA4gIAIfMBAQDiAgAh9AEBAOICACH1AQIA_wIAIfYBAQAAAAH3AUAA5wIAIfgBQADnAgAh-QEBAOICACH6AQEA4gIAIfsBAQDiAgAhngIAAPoCACADAAAAFQAgAQAAFgAwAgAAFwAgCQgAAPYCACALAAD5AgAguwEAAPgCADC8AQAAGQAQvQEAAPgCADC-AQEA4QIAIb8BAQDhAgAhzgEBAOECACHPAQEA4gIAIQMIAACqBQAgCwAAqwUAIM8BAACOAwAgCggAAPYCACALAAD5AgAguwEAAPgCADC8AQAAGQAQvQEAAPgCADC-AQEAAAABvwEBAOECACHOAQEA4QIAIc8BAQDiAgAhnQIAAPcCACADAAAAGQAgAQAAGgAwAgAAGwAgAwAAABkAIAEAABoAMAIAABsAIAEAAAAZACAJCAAA9gIAILsBAAD1AgAwvAEAAB8AEL0BAAD1AgAwvgEBAOECACG_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_AwAhAgAAAEAAIBgAAEwAIAIAAABAACAYAABMACADAAAAAQAgHwAARQAgIAAASgAgAQAAAAEAIAEAAABAACANBgAAzwQAICUAANAEACAmAADTBAAgJwAA0gQAICgAANEEACCFAgAAjgMAIIYCAACOAwAghwIAAI4DACCIAgAAjgMAIIoCAACOAwAglgIAAI4DACCXAgAAjgMAIJgCAACOAwAgE7sBAADZAgAwvAEAAFMAEL0BAADZAgAwvgEBAKMCACHCAUAApQIAIdkBIACxAgAh2wFAAKUCACGEAgEAowIAIYUCAQCkAgAhhgIBAKQCACGHAgEApAIAIYgCAQCkAgAhigIAALcCACCTAgAA2gKTAiKVAgAA2wKVAiKWAgEApAIAIZcCQACwAgAhmAJAALACACGZAgIAugIAIQMAAABAACABAABSADAkAABTACADAAAAQAAgAQAAQQAwAgAAAQAgAQAAAAUAIAEAAAAFACADAAAAAwAgAQAABAAwAgAABQAgAwAAAAMAIAEAAAQAMAIAAAUAIAMAAAADACABAAAEADACAAAFACAQAwAAzgQAIAUAAM0EACC-AQEAAAABwgFAAAAAAdABAQAAAAHZASAAAAAB2gFAAAAAAdsBQAAAAAGEAgEAAAABhgIBAAAAAYsCAQAAAAGNAgAAAI0CAo4CQAAAAAGPAgEAAAABkAIBAAAAAZECQAAAAAEBGAAAWwAgDr4BAQAAAAHCAUAAAAAB0AEBAAAAAdkBIAAAAAHaAUAAAAAB2wFAAAAAAYQCAQAAAAGGAgEAAAABiwIBAAAAAY0CAAAAjQICjgJAAAAAAY8CAQAAAAGQAgEAAAABkQJAAAAAAQEYAABdADABGAAAXQAwEAMAAMAEACAFAAC_BAAgvgEBAJIDACHCAUAAlAMAIdABAQCSAwAh2QEgAKIDACHaAUAAoQMAIdsBQACUAwAhhAIBAJIDACGGAgEAkgMAIYsCAQCSAwAhjQIAAL4EjQIijgJAAKEDACGPAgEAkwMAIZACAQCTAwAhkQJAAKEDACECAAAABQAgGAAAYAAgDr4BAQCSAwAhwgFAAJQDACHQAQEAkgMAIdkBIACiAwAh2gFAAKEDACHbAUAAlAMAIYQCAQCSAwAhhgIBAJIDACGLAgEAkgMAIY0CAAC-BI0CIo4CQAChAwAhjwIBAJMDACGQAgEAkwMAIZECQAChAwAhAgAAAAMAIBgAAGIAIAIAAAADACAYAABiACADAAAABQAgHwAAWwAgIAAAYAAgAQAAAAUAIAEAAAADACAIBgAAuwQAICcAAL0EACAoAAC8BAAg2gEAAI4DACCOAgAAjgMAII8CAACOAwAgkAIAAI4DACCRAgAAjgMAIBG7AQAA1QIAMLwBAABpABC9AQAA1QIAML4BAQCjAgAhwgFAAKUCACHQAQEAowIAIdkBIACxAgAh2gFAALACACHbAUAApQIAIYQCAQCjAgAhhgIBAKMCACGLAgEAowIAIY0CAADWAo0CIo4CQACwAgAhjwIBAKQCACGQAgEApAIAIZECQACwAgAhAwAAAAMAIAEAAGgAMCQAAGkAIAMAAAADACABAAAEADACAAAFACABAAAANwAgAQAAADcAIAMAAAAkACABAAA2ADACAAA3ACADAAAAJAAgAQAANgAwAgAANwAgAwAAACQAIAEAADYAMAIAADcAIAsDAAC6BAAgDgAAuQQAIL4BAQAAAAHCAUAAAAAB0AEBAAAAAdkBIAAAAAHaAUAAAAAB2wFAAAAAAYQCAQAAAAGGAgEAAAABhwIBAAAAAQEYAABxACAJvgEBAAAAAcIBQAAAAAHQAQEAAAAB2QEgAAAAAdoBQAAAAAHbAUAAAAABhAIBAAAAAYYCAQAAAAGHAgEAAAABARgAAHMAMAEYAABzADALAwAArwQAIA4AAK4EACC-AQEAkgMAIcIBQACUAwAh0AEBAJIDACHZASAAogMAIdoBQAChAwAh2wFAAJQDACGEAgEAkgMAIYYCAQCTAwAhhwIBAJMDACECAAAANwAgGAAAdgAgCb4BAQCSAwAhwgFAAJQDACHQAQEAkgMAIdkBIACiAwAh2gFAAKEDACHbAUAAlAMAIYQCAQCSAwAhhgIBAJMDACGHAgEAkwMAIQIAAAAkACAYAAB4ACACAAAAJAAgGAAAeAAgAwAAADcAIB8AAHEAICAAAHYAIAEAAAA3ACABAAAAJAAgBgYAAKsEACAnAACtBAAgKAAArAQAINoBAACOAwAghgIAAI4DACCHAgAAjgMAIAy7AQAA1AIAMLwBAAB_ABC9AQAA1AIAML4BAQCjAgAhwgFAAKUCACHQAQEAowIAIdkBIACxAgAh2gFAALACACHbAUAApQIAIYQCAQCjAgAhhgIBAKQCACGHAgEApAIAIQMAAAAkACABAAB-ADAkAAB_ACADAAAAJAAgAQAANgAwAgAANwAgAQAAAA8AIAEAAAAPACADAAAADQAgAQAADgAwAgAADwAgAwAAAA0AIAEAAA4AMAIAAA8AIAMAAAANACABAAAOADACAAAPACASAwAAqgQAIAsAAKkEACAOAACoBAAgEAAApwQAIL4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHZASAAAAAB2gFAAAAAAdsBQAAAAAGEAgEAAAABhQIBAAAAAYYCAQAAAAGHAgEAAAABiAIBAAAAAYkCAQAAAAGKAoAAAAABARgAAIcBACAOvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdkBIAAAAAHaAUAAAAAB2wFAAAAAAYQCAQAAAAGFAgEAAAABhgIBAAAAAYcCAQAAAAGIAgEAAAABiQIBAAAAAYoCgAAAAAEBGAAAiQEAMAEYAACJAQAwEgMAAIUEACALAACEBAAgDgAAgwQAIBAAAIIEACC-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdkBIACiAwAh2gFAAKEDACHbAUAAlAMAIYQCAQCSAwAhhQIBAJMDACGGAgEAkwMAIYcCAQCTAwAhiAIBAJMDACGJAgEAkgMAIYoCgAAAAAECAAAADwAgGAAAjAEAIA6-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdkBIACiAwAh2gFAAKEDACHbAUAAlAMAIYQCAQCSAwAhhQIBAJMDACGGAgEAkwMAIYcCAQCTAwAhiAIBAJMDACGJAgEAkgMAIYoCgAAAAAECAAAADQAgGAAAjgEAIAIAAAANACAYAACOAQAgAwAAAA8AIB8AAIcBACAgAACMAQAgAQAAAA8AIAEAAAANACAKBgAA_wMAICcAAIEEACAoAACABAAgzwEAAI4DACDaAQAAjgMAIIUCAACOAwAghgIAAI4DACCHAgAAjgMAIIgCAACOAwAgigIAAI4DACARuwEAANMCADC8AQAAlQEAEL0BAADTAgAwvgEBAKMCACHCAUAApQIAIc8BAQCkAgAh0AEBAKMCACHZASAAsQIAIdoBQACwAgAh2wFAAKUCACGEAgEAowIAIYUCAQCkAgAhhgIBAKQCACGHAgEApAIAIYgCAQCkAgAhiQIBAKMCACGKAgAAtwIAIAMAAAANACABAACUAQAwJAAAlQEAIAMAAAANACABAAAOADACAAAPACABAAAAEwAgAQAAABMAIAMAAAARACABAAASADACAAATACADAAAAEQAgAQAAEgAwAgAAEwAgAwAAABEAIAEAABIAMAIAABMAIBMDAAD9AwAgCQAA_gMAIA4AAPwDACC-AQEAAAABwgFAAAAAAc8BAQAAAAHQAQEAAAAB0QEBAAAAAdoBQAAAAAHbAUAAAAAB6wEAAADrAQPvAQAAAIICAvABEAAAAAH9AQAAAP0BAv4BQAAAAAH_AUAAAAABgAJAAAAAAYICAgAAAAGDAkAAAAABARgAAJ0BACAQvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdEBAQAAAAHaAUAAAAAB2wFAAAAAAesBAAAA6wED7wEAAACCAgLwARAAAAAB_QEAAAD9AQL-AUAAAAAB_wFAAAAAAYACQAAAAAGCAgIAAAABgwJAAAAAAQEYAACfAQAwARgAAJ8BADATAwAA7gMAIAkAAO8DACAOAADtAwAgvgEBAJIDACHCAUAAlAMAIc8BAQCTAwAh0AEBAJIDACHRAQEAkgMAIdoBQAChAwAh2wFAAJQDACHrAQAAwAPrASPvAQAA7AOCAiLwARAA6wMAIf0BAADqA_0BIv4BQACUAwAh_wFAAJQDACGAAkAAoQMAIYICAgC_AwAhgwJAAKEDACECAAAAEwAgGAAAogEAIBC-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdEBAQCSAwAh2gFAAKEDACHbAUAAlAMAIesBAADAA-sBI-8BAADsA4ICIvABEADrAwAh_QEAAOoD_QEi_gFAAJQDACH_AUAAlAMAIYACQAChAwAhggICAL8DACGDAkAAoQMAIQIAAAARACAYAACkAQAgAgAAABEAIBgAAKQBACADAAAAEwAgHwAAnQEAICAAAKIBACABAAAAEwAgAQAAABEAIAoGAADlAwAgJQAA5gMAICYAAOkDACAnAADoAwAgKAAA5wMAIM8BAACOAwAg2gEAAI4DACDrAQAAjgMAIIACAACOAwAggwIAAI4DACATuwEAAMkCADC8AQAAqwEAEL0BAADJAgAwvgEBAKMCACHCAUAApQIAIc8BAQCkAgAh0AEBAKMCACHRAQEAowIAIdoBQACwAgAh2wFAAKUCACHrAQAAuwLrASPvAQAAzAKCAiLwARAAywIAIf0BAADKAv0BIv4BQAClAgAh_wFAAKUCACGAAkAAsAIAIYICAgC6AgAhgwJAALACACEDAAAAEQAgAQAAqgEAMCQAAKsBACADAAAAEQAgAQAAEgAwAgAAEwAgAQAAABcAIAEAAAAXACADAAAAFQAgAQAAFgAwAgAAFwAgAwAAABUAIAEAABYAMAIAABcAIAMAAAAVACABAAAWADACAAAXACAfAwAA4QMAIAkAAOMDACALAADfAwAgDAAA4AMAIA0AAOIDACAPAADkAwAgvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdEBAQAAAAHaAUAAAAAB2wFAAAAAAegBAgAAAAHpAQEAAAAB6wEAAADrAQPsAUAAAAAB7QFAAAAAAe8BAAAA7wEC8AEQAAAAAfEBIAAAAAHyAQEAAAAB8wEBAAAAAfQBAQAAAAH1AQIAAAAB9gEBAAAAAfcBQAAAAAH4AUAAAAAB-QEBAAAAAfoBAQAAAAH7AQEAAAABARgAALMBACAZvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdEBAQAAAAHaAUAAAAAB2wFAAAAAAegBAgAAAAHpAQEAAAAB6wEAAADrAQPsAUAAAAAB7QFAAAAAAe8BAAAA7wEC8AEQAAAAAfEBIAAAAAHyAQEAAAAB8wEBAAAAAfQBAQAAAAH1AQIAAAAB9gEBAAAAAfcBQAAAAAH4AUAAAAAB-QEBAAAAAfoBAQAAAAH7AQEAAAABARgAALUBADABGAAAtQEAMAEAAAARACABAAAAJAAgHwMAAMYDACAJAADIAwAgCwAAxAMAIAwAAMUDACANAADHAwAgDwAAyQMAIL4BAQCSAwAhwgFAAJQDACHPAQEAkwMAIdABAQCSAwAh0QEBAJIDACHaAUAAoQMAIdsBQACUAwAh6AECAL8DACHpAQEAkwMAIesBAADAA-sBI-wBQACUAwAh7QFAAKEDACHvAQAAwQPvASLwARAAwgMAIfEBIACiAwAh8gEBAJMDACHzAQEAkwMAIfQBAQCTAwAh9QECAMMDACH2AQEAkwMAIfcBQAChAwAh-AFAAKEDACH5AQEAkwMAIfoBAQCTAwAh-wEBAJMDACECAAAAFwAgGAAAugEAIBm-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdEBAQCSAwAh2gFAAKEDACHbAUAAlAMAIegBAgC_AwAh6QEBAJMDACHrAQAAwAPrASPsAUAAlAMAIe0BQAChAwAh7wEAAMED7wEi8AEQAMIDACHxASAAogMAIfIBAQCTAwAh8wEBAJMDACH0AQEAkwMAIfUBAgDDAwAh9gEBAJMDACH3AUAAoQMAIfgBQAChAwAh-QEBAJMDACH6AQEAkwMAIfsBAQCTAwAhAgAAABUAIBgAALwBACACAAAAFQAgGAAAvAEAIAEAAAARACABAAAAJAAgAwAAABcAIB8AALMBACAgAAC6AQAgAQAAABcAIAEAAAAVACAVBgAAugMAICUAALsDACAmAAC-AwAgJwAAvQMAICgAALwDACDPAQAAjgMAINoBAACOAwAg6QEAAI4DACDrAQAAjgMAIO0BAACOAwAg8AEAAI4DACDyAQAAjgMAIPMBAACOAwAg9AEAAI4DACD1AQAAjgMAIPYBAACOAwAg9wEAAI4DACD4AQAAjgMAIPkBAACOAwAg-gEAAI4DACD7AQAAjgMAIBy7AQAAuQIAMLwBAADFAQAQvQEAALkCADC-AQEAowIAIcIBQAClAgAhzwEBAKQCACHQAQEAowIAIdEBAQCjAgAh2gFAALACACHbAUAApQIAIegBAgC6AgAh6QEBAKQCACHrAQAAuwLrASPsAUAApQIAIe0BQACwAgAh7wEAALwC7wEi8AEQAL0CACHxASAAsQIAIfIBAQCkAgAh8wEBAKQCACH0AQEApAIAIfUBAgC-AgAh9gEBAKQCACH3AUAAsAIAIfgBQACwAgAh-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_AQEAAAABwAEBAAAAAcEBAQAAAAHCAUAAAAABARgAAJMCADABGAAAkwIAMAYIAACVAwAgvgEBAJIDACG_AQEAkgMAIcABAQCSAwAhwQEBAJMDACHCAUAAlAMAIQIAAAAhACAYAACWAgAgBb4BAQCSAwAhvwEBAJIDACHAAQEAkgMAIcEBAQCTAwAhwgFAAJQDACECAAAAHwAgGAAAmAIAIAIAAAAfACAYAACYAgAgAwAAACEAIB8AAJECACAgAACWAgAgAQAAACEAIAEAAAAfACAEBgAAjwMAICcAAJEDACAoAACQAwAgwQEAAI4DACAIuwEAAKICADC8AQAAnwIAEL0BAACiAgAwvgEBAKMCACG_AQEAowIAIcABAQCjAgAhwQEBAKQCACHCAUAApQIAIQMAAAAfACABAACeAgAwJAAAnwIAIAMAAAAfACABAAAgADACAAAhACAIuwEAAKICADC8AQAAnwIAEL0BAACiAgAwvgEBAKMCACG_AQEAowIAIcABAQCjAgAhwQEBAKQCACHCAUAApQIAIQ4GAACnAgAgJwAArQIAICgAAK0CACDDAQEAAAABxAEBAAAABMUBAQAAAATGAQEAAAABxwEBAAAAAcgBAQAAAAHJAQEAAAABygEBAKwCACHLAQEAAAABzAEBAAAAAc0BAQAAAAEOBgAAqgIAICcAAKsCACAoAACrAgAgwwEBAAAAAcQBAQAAAAXFAQEAAAAFxgEBAAAAAccBAQAAAAHIAQEAAAAByQEBAAAAAcoBAQCpAgAhywEBAAAAAcwBAQAAAAHNAQEAAAABCwYAAKcCACAnAACoAgAgKAAAqAIAIMMBQAAAAAHEAUAAAAAExQFAAAAABMYBQAAAAAHHAUAAAAAByAFAAAAAAckBQAAAAAHKAUAApgIAIQsGAACnAgAgJwAAqAIAICgAAKgCACDDAUAAAAABxAFAAAAABMUBQAAAAATGAUAAAAABxwFAAAAAAcgBQAAAAAHJAUAAAAABygFAAKYCACEIwwECAAAAAcQBAgAAAATFAQIAAAAExgECAAAAAccBAgAAAAHIAQIAAAAByQECAAAAAcoBAgCnAgAhCMMBQAAAAAHEAUAAAAAExQFAAAAABMYBQAAAAAHHAUAAAAAByAFAAAAAAckBQAAAAAHKAUAAqAIAIQ4GAACqAgAgJwAAqwIAICgAAKsCACDDAQEAAAABxAEBAAAABcUBAQAAAAXGAQEAAAABxwEBAAAAAcgBAQAAAAHJAQEAAAABygEBAKkCACHLAQEAAAABzAEBAAAAAc0BAQAAAAEIwwECAAAAAcQBAgAAAAXFAQIAAAAFxgECAAAAAccBAgAAAAHIAQIAAAAByQECAAAAAcoBAgCqAgAhC8MBAQAAAAHEAQEAAAAFxQEBAAAABcYBAQAAAAHHAQEAAAAByAEBAAAAAckBAQAAAAHKAQEAqwIAIcsBAQAAAAHMAQEAAAABzQEBAAAAAQ4GAACnAgAgJwAArQIAICgAAK0CACDDAQEAAAABxAEBAAAABMUBAQAAAATGAQEAAAABxwEBAAAAAcgBAQAAAAHJAQEAAAABygEBAKwCACHLAQEAAAABzAEBAAAAAc0BAQAAAAELwwEBAAAAAcQBAQAAAATFAQEAAAAExgEBAAAAAccBAQAAAAHIAQEAAAAByQEBAAAAAcoBAQCtAgAhywEBAAAAAcwBAQAAAAHNAQEAAAABB7sBAACuAgAwvAEAAIkCABC9AQAArgIAML4BAQCjAgAhvwEBAKMCACHOAQEAowIAIc8BAQCkAgAhErsBAACvAgAwvAEAAPMBABC9AQAArwIAML4BAQCjAgAhwgFAAKUCACHPAQEApAIAIdABAQCjAgAh0QEBAKMCACHSAQEAowIAIdMBAQCkAgAh1AEBAKQCACHVAQEApAIAIdYBAQCkAgAh1wEBAKQCACHYAUAAsAIAIdkBIACxAgAh2gFAALACACHbAUAApQIAIQsGAACqAgAgJwAAtQIAICgAALUCACDDAUAAAAABxAFAAAAABcUBQAAAAAXGAUAAAAABxwFAAAAAAcgBQAAAAAHJAUAAAAABygFAALQCACEFBgAApwIAICcAALMCACAoAACzAgAgwwEgAAAAAcoBIACyAgAhBQYAAKcCACAnAACzAgAgKAAAswIAIMMBIAAAAAHKASAAsgIAIQLDASAAAAABygEgALMCACELBgAAqgIAICcAALUCACAoAAC1AgAgwwFAAAAAAcQBQAAAAAXFAUAAAAAFxgFAAAAAAccBQAAAAAHIAUAAAAAByQFAAAAAAcoBQAC0AgAhCMMBQAAAAAHEAUAAAAAFxQFAAAAABcYBQAAAAAHHAUAAAAAByAFAAAAAAckBQAAAAAHKAUAAtQIAIQy7AQAAtgIAMLwBAADdAQAQvQEAALYCADC-AQEAowIAIcIBQAClAgAh0AEBAKMCACHcAQEApAIAId0BAQCjAgAh3gEBAKMCACHfAQEAowIAIeABAAC3AgAg4QEAALcCACAPBgAAqgIAICcAALgCACAoAAC4AgAgwwGAAAAAAcYBgAAAAAHHAYAAAAAByAGAAAAAAckBgAAAAAHKAYAAAAAB4gEBAAAAAeMBAQAAAAHkAQEAAAAB5QGAAAAAAeYBgAAAAAHnAYAAAAABDMMBgAAAAAHGAYAAAAABxwGAAAAAAcgBgAAAAAHJAYAAAAABygGAAAAAAeIBAQAAAAHjAQEAAAAB5AEBAAAAAeUBgAAAAAHmAYAAAAAB5wGAAAAAARy7AQAAuQIAMLwBAADFAQAQvQEAALkCADC-AQEAowIAIcIBQAClAgAhzwEBAKQCACHQAQEAowIAIdEBAQCjAgAh2gFAALACACHbAUAApQIAIegBAgC6AgAh6QEBAKQCACHrAQAAuwLrASPsAUAApQIAIe0BQACwAgAh7wEAALwC7wEi8AEQAL0CACHxASAAsQIAIfIBAQCkAgAh8wEBAKQCACH0AQEApAIAIfUBAgC-AgAh9gEBAKQCACH3AUAAsAIAIfgBQACwAgAh-QEBAKQCACH6AQEApAIAIfsBAQCkAgAhDQYAAKcCACAlAADIAgAgJgAApwIAICcAAKcCACAoAACnAgAgwwECAAAAAcQBAgAAAATFAQIAAAAExgECAAAAAccBAgAAAAHIAQIAAAAByQECAAAAAcoBAgDHAgAhBwYAAKoCACAnAADGAgAgKAAAxgIAIMMBAAAA6wEDxAEAAADrAQnFAQAAAOsBCcoBAADFAusBIwcGAACnAgAgJwAAxAIAICgAAMQCACDDAQAAAO8BAsQBAAAA7wEIxQEAAADvAQjKAQAAwwLvASINBgAAqgIAICUAAMICACAmAADCAgAgJwAAwgIAICgAAMICACDDARAAAAABxAEQAAAABcUBEAAAAAXGARAAAAABxwEQAAAAAcgBEAAAAAHJARAAAAABygEQAMECACENBgAAqgIAICUAAMACACAmAACqAgAgJwAAqgIAICgAAKoCACDDAQIAAAABxAECAAAABcUBAgAAAAXGAQIAAAABxwECAAAAAcgBAgAAAAHJAQIAAAABygECAL8CACENBgAAqgIAICUAAMACACAmAACqAgAgJwAAqgIAICgAAKoCACDDAQIAAAABxAECAAAABcUBAgAAAAXGAQIAAAABxwECAAAAAcgBAgAAAAHJAQIAAAABygECAL8CACEIwwEIAAAAAcQBCAAAAAXFAQgAAAAFxgEIAAAAAccBCAAAAAHIAQgAAAAByQEIAAAAAcoBCADAAgAhDQYAAKoCACAlAADCAgAgJgAAwgIAICcAAMICACAoAADCAgAgwwEQAAAAAcQBEAAAAAXFARAAAAAFxgEQAAAAAccBEAAAAAHIARAAAAAByQEQAAAAAcoBEADBAgAhCMMBEAAAAAHEARAAAAAFxQEQAAAABcYBEAAAAAHHARAAAAAByAEQAAAAAckBEAAAAAHKARAAwgIAIQcGAACnAgAgJwAAxAIAICgAAMQCACDDAQAAAO8BAsQBAAAA7wEIxQEAAADvAQjKAQAAwwLvASIEwwEAAADvAQLEAQAAAO8BCMUBAAAA7wEIygEAAMQC7wEiBwYAAKoCACAnAADGAgAgKAAAxgIAIMMBAAAA6wEDxAEAAADrAQnFAQAAAOsBCcoBAADFAusBIwTDAQAAAOsBA8QBAAAA6wEJxQEAAADrAQnKAQAAxgLrASMNBgAApwIAICUAAMgCACAmAACnAgAgJwAApwIAICgAAKcCACDDAQIAAAABxAECAAAABMUBAgAAAATGAQIAAAABxwECAAAAAcgBAgAAAAHJAQIAAAABygECAMcCACEIwwEIAAAAAcQBCAAAAATFAQgAAAAExgEIAAAAAccBCAAAAAHIAQgAAAAByQEIAAAAAcoBCADIAgAhE7sBAADJAgAwvAEAAKsBABC9AQAAyQIAML4BAQCjAgAhwgFAAKUCACHPAQEApAIAIdABAQCjAgAh0QEBAKMCACHaAUAAsAIAIdsBQAClAgAh6wEAALsC6wEj7wEAAMwCggIi8AEQAMsCACH9AQAAygL9ASL-AUAApQIAIf8BQAClAgAhgAJAALACACGCAgIAugIAIYMCQACwAgAhBwYAAKcCACAnAADSAgAgKAAA0gIAIMMBAAAA_QECxAEAAAD9AQjFAQAAAP0BCMoBAADRAv0BIg0GAACnAgAgJQAA0AIAICYAANACACAnAADQAgAgKAAA0AIAIMMBEAAAAAHEARAAAAAExQEQAAAABMYBEAAAAAHHARAAAAAByAEQAAAAAckBEAAAAAHKARAAzwIAIQcGAACnAgAgJwAAzgIAICgAAM4CACDDAQAAAIICAsQBAAAAggIIxQEAAACCAgjKAQAAzQKCAiIHBgAApwIAICcAAM4CACAoAADOAgAgwwEAAACCAgLEAQAAAIICCMUBAAAAggIIygEAAM0CggIiBMMBAAAAggICxAEAAACCAgjFAQAAAIICCMoBAADOAoICIg0GAACnAgAgJQAA0AIAICYAANACACAnAADQAgAgKAAA0AIAIMMBEAAAAAHEARAAAAAExQEQAAAABMYBEAAAAAHHARAAAAAByAEQAAAAAckBEAAAAAHKARAAzwIAIQjDARAAAAABxAEQAAAABMUBEAAAAATGARAAAAABxwEQAAAAAcgBEAAAAAHJARAAAAABygEQANACACEHBgAApwIAICcAANICACAoAADSAgAgwwEAAAD9AQLEAQAAAP0BCMUBAAAA_QEIygEAANEC_QEiBMMBAAAA_QECxAEAAAD9AQjFAQAAAP0BCMoBAADSAv0BIhG7AQAA0wIAMLwBAACVAQAQvQEAANMCADC-AQEAowIAIcIBQAClAgAhzwEBAKQCACHQAQEAowIAIdkBIACxAgAh2gFAALACACHbAUAApQIAIYQCAQCjAgAhhQIBAKQCACGGAgEApAIAIYcCAQCkAgAhiAIBAKQCACGJAgEAowIAIYoCAAC3AgAgDLsBAADUAgAwvAEAAH8AEL0BAADUAgAwvgEBAKMCACHCAUAApQIAIdABAQCjAgAh2QEgALECACHaAUAAsAIAIdsBQAClAgAhhAIBAKMCACGGAgEApAIAIYcCAQCkAgAhEbsBAADVAgAwvAEAAGkAEL0BAADVAgAwvgEBAKMCACHCAUAApQIAIdABAQCjAgAh2QEgALECACHaAUAAsAIAIdsBQAClAgAhhAIBAKMCACGGAgEAowIAIYsCAQCjAgAhjQIAANYCjQIijgJAALACACGPAgEApAIAIZACAQCkAgAhkQJAALACACEHBgAApwIAICcAANgCACAoAADYAgAgwwEAAACNAgLEAQAAAI0CCMUBAAAAjQIIygEAANcCjQIiBwYAAKcCACAnAADYAgAgKAAA2AIAIMMBAAAAjQICxAEAAACNAgjFAQAAAI0CCMoBAADXAo0CIgTDAQAAAI0CAsQBAAAAjQIIxQEAAACNAgjKAQAA2AKNAiITuwEAANkCADC8AQAAUwAQvQEAANkCADC-AQEAowIAIcIBQAClAgAh2QEgALECACHbAUAApQIAIYQCAQCjAgAhhQIBAKQCACGGAgEApAIAIYcCAQCkAgAhiAIBAKQCACGKAgAAtwIAIJMCAADaApMCIpUCAADbApUCIpYCAQCkAgAhlwJAALACACGYAkAAsAIAIZkCAgC6AgAhBwYAAKcCACAnAADfAgAgKAAA3wIAIMMBAAAAkwICxAEAAACTAgjFAQAAAJMCCMoBAADeApMCIgcGAACnAgAgJwAA3QIAICgAAN0CACDDAQAAAJUCAsQBAAAAlQIIxQEAAACVAgjKAQAA3AKVAiIHBgAApwIAICcAAN0CACAoAADdAgAgwwEAAACVAgLEAQAAAJUCCMUBAAAAlQIIygEAANwClQIiBMMBAAAAlQICxAEAAACVAgjFAQAAAJUCCMoBAADdApUCIgcGAACnAgAgJwAA3wIAICgAAN8CACDDAQAAAJMCAsQBAAAAkwIIxQEAAACTAgjKAQAA3gKTAiIEwwEAAACTAgLEAQAAAJMCCMUBAAAAkwIIygEAAN8CkwIiGQUAAO4CACAHAADqAgAgDgAA7QIAIBAAAOwCACARAADrAgAgEgAA7wIAILsBAADgAgAwvAEAAEAAEL0BAADgAgAwvgEBAOECACHCAUAA6QIAIdkBIADmAgAh2wFAAOkCACGEAgEA4QIAIYUCAQDiAgAhhgIBAOICACGHAgEA4gIAIYgCAQDiAgAhigIAAOUCACCTAgAA4wKTAiKVAgAA5AKVAiKWAgEA4gIAIZcCQADnAgAhmAJAAOcCACGZAgIA6AIAIQvDAQEAAAABxAEBAAAABMUBAQAAAATGAQEAAAABxwEBAAAAAcgBAQAAAAHJAQEAAAABygEBAK0CACHLAQEAAAABzAEBAAAAAc0BAQAAAAELwwEBAAAAAcQBAQAAAAXFAQEAAAAFxgEBAAAAAccBAQAAAAHIAQEAAAAByQEBAAAAAcoBAQCrAgAhywEBAAAAAcwBAQAAAAHNAQEAAAABBMMBAAAAkwICxAEAAACTAgjFAQAAAJMCCMoBAADfApMCIgTDAQAAAJUCAsQBAAAAlQIIxQEAAACVAgjKAQAA3QKVAiIMwwGAAAAAAcYBgAAAAAHHAYAAAAAByAGAAAAAAckBgAAAAAHKAYAAAAAB4gEBAAAAAeMBAQAAAAHkAQEAAAAB5QGAAAAAAeYBgAAAAAHnAYAAAAABAsMBIAAAAAHKASAAswIAIQjDAUAAAAABxAFAAAAABcUBQAAAAAXGAUAAAAABxwFAAAAAAcgBQAAAAAHJAUAAAAABygFAALUCACEIwwECAAAAAcQBAgAAAATFAQIAAAAExgECAAAAAccBAgAAAAHIAQIAAAAByQECAAAAAcoBAgCnAgAhCMMBQAAAAAHEAUAAAAAExQFAAAAABMYBQAAAAAHHAUAAAAAByAFAAAAAAckBQAAAAAHKAUAAqAIAIQOaAgAAAwAgmwIAAAMAIJwCAAADACADmgIAAA0AIJsCAAANACCcAgAADQAgA5oCAAARACCbAgAAEQAgnAIAABEAIAOaAgAAFQAgmwIAABUAIJwCAAAVACADmgIAAAcAIJsCAAAHACCcAgAABwAgA5oCAAAkACCbAgAAJAAgnAIAACQAIA4DAADxAgAgDgAA7QIAILsBAADwAgAwvAEAACQAEL0BAADwAgAwvgEBAOECACHCAUAA6QIAIdABAQDhAgAh2QEgAOYCACHaAUAA5wIAIdsBQADpAgAhhAIBAOECACGGAgEA4gIAIYcCAQDiAgAhGwUAAO4CACAHAADqAgAgDgAA7QIAIBAAAOwCACARAADrAgAgEgAA7wIAILsBAADgAgAwvAEAAEAAEL0BAADgAgAwvgEBAOECACHCAUAA6QIAIdkBIADmAgAh2wFAAOkCACGEAgEA4QIAIYUCAQDiAgAhhgIBAOICACGHAgEA4gIAIYgCAQDiAgAhigIAAOUCACCTAgAA4wKTAiKVAgAA5AKVAiKWAgEA4gIAIZcCQADnAgAhmAJAAOcCACGZAgIA6AIAIaACAABAACChAgAAQAAgFAkAAPMCACAKAAD0AgAguwEAAPICADC8AQAALAAQvQEAAPICADC-AQEA4QIAIcIBQADpAgAhzwEBAOICACHQAQEA4QIAIdEBAQDhAgAh0gEBAOECACHTAQEA4gIAIdQBAQDiAgAh1QEBAOICACHWAQEA4gIAIdcBAQDiAgAh2AFAAOcCACHZASAA5gIAIdoBQADnAgAh2wFAAOkCACEXAwAA8QIAIAsAAIkDACAOAADtAgAgEAAA7AIAILsBAACIAwAwvAEAAA0AEL0BAACIAwAwvgEBAOECACHCAUAA6QIAIc8BAQDiAgAh0AEBAOECACHZASAA5gIAIdoBQADnAgAh2wFAAOkCACGEAgEA4QIAIYUCAQDiAgAhhgIBAOICACGHAgEA4gIAIYgCAQDiAgAhiQIBAOECACGKAgAA5QIAIKACAAANACChAgAADQAgA5oCAAAZACCbAgAAGQAgnAIAABkAIAkIAAD2AgAguwEAAPUCADC8AQAAHwAQvQEAAPUCADC-AQEA4QIAIb8BAQDhAgAhwAEBAOECACHBAQEA4gIAIcIBQADpAgAhJAMAAPECACAJAADzAgAgCwAA9AIAIAwAAIADACANAACBAwAgDwAAggMAILsBAAD7AgAwvAEAABUAEL0BAAD7AgAwvgEBAOECACHCAUAA6QIAIc8BAQDiAgAh0AEBAOECACHRAQEA4QIAIdoBQADnAgAh2wFAAOkCACHoAQIA6AIAIekBAQDiAgAh6wEAAPwC6wEj7AFAAOkCACHtAUAA5wIAIe8BAAD9Au8BIvABEAD-AgAh8QEgAOYCACHyAQEA4gIAIfMBAQDiAgAh9AEBAOICACH1AQIA_wIAIfYBAQDiAgAh9wFAAOcCACH4AUAA5wIAIfkBAQDiAgAh-gEBAOICACH7AQEA4gIAIaACAAAVACChAgAAFQAgAr8BAQAAAAHOAQEAAAABCQgAAPYCACALAAD5AgAguwEAAPgCADC8AQAAGQAQvQEAAPgCADC-AQEA4QIAIb8BAQDhAgAhzgEBAOECACHPAQEA4gIAIRYJAADzAgAgCgAA9AIAILsBAADyAgAwvAEAACwAEL0BAADyAgAwvgEBAOECACHCAUAA6QIAIc8BAQDiAgAh0AEBAOECACHRAQEA4QIAIdIBAQDhAgAh0wEBAOICACHUAQEA4gIAIdUBAQDiAgAh1gEBAOICACHXAQEA4gIAIdgBQADnAgAh2QEgAOYCACHaAUAA5wIAIdsBQADpAgAhoAIAACwAIKECAAAsACAC0AEBAAAAAegBAgAAAAEiAwAA8QIAIAkAAPMCACALAAD0AgAgDAAAgAMAIA0AAIEDACAPAACCAwAguwEAAPsCADC8AQAAFQAQvQEAAPsCADC-AQEA4QIAIcIBQADpAgAhzwEBAOICACHQAQEA4QIAIdEBAQDhAgAh2gFAAOcCACHbAUAA6QIAIegBAgDoAgAh6QEBAOICACHrAQAA_ALrASPsAUAA6QIAIe0BQADnAgAh7wEAAP0C7wEi8AEQAP4CACHxASAA5gIAIfIBAQDiAgAh8wEBAOICACH0AQEA4gIAIfUBAgD_AgAh9gEBAOICACH3AUAA5wIAIfgBQADnAgAh-QEBAOICACH6AQEA4gIAIfsBAQDiAgAhBMMBAAAA6wEDxAEAAADrAQnFAQAAAOsBCcoBAADGAusBIwTDAQAAAO8BAsQBAAAA7wEIxQEAAADvAQjKAQAAxALvASIIwwEQAAAAAcQBEAAAAAXFARAAAAAFxgEQAAAAAccBEAAAAAHIARAAAAAByQEQAAAAAcoBEADCAgAhCMMBAgAAAAHEAQIAAAAFxQECAAAABcYBAgAAAAHHAQIAAAAByAECAAAAAckBAgAAAAHKAQIAqgIAIQOaAgAAHwAgmwIAAB8AIJwCAAAfACAYAwAA8QIAIAkAAPMCACAOAADtAgAguwEAAIMDADC8AQAAEQAQvQEAAIMDADC-AQEA4QIAIcIBQADpAgAhzwEBAOICACHQAQEA4QIAIdEBAQDhAgAh2gFAAOcCACHbAUAA6QIAIesBAAD8AusBI-8BAACGA4ICIvABEACFAwAh_QEAAIQD_QEi_gFAAOkCACH_AUAA6QIAIYACQADnAgAhggICAOgCACGDAkAA5wIAIaACAAARACChAgAAEQAgEAMAAPECACAOAADtAgAguwEAAPACADC8AQAAJAAQvQEAAPACADC-AQEA4QIAIcIBQADpAgAh0AEBAOECACHZASAA5gIAIdoBQADnAgAh2wFAAOkCACGEAgEA4QIAIYYCAQDiAgAhhwIBAOICACGgAgAAJAAgoQIAACQAIBYDAADxAgAgCQAA8wIAIA4AAO0CACC7AQAAgwMAMLwBAAARABC9AQAAgwMAML4BAQDhAgAhwgFAAOkCACHPAQEA4gIAIdABAQDhAgAh0QEBAOECACHaAUAA5wIAIdsBQADpAgAh6wEAAPwC6wEj7wEAAIYDggIi8AEQAIUDACH9AQAAhAP9ASL-AUAA6QIAIf8BQADpAgAhgAJAAOcCACGCAgIA6AIAIYMCQADnAgAhBMMBAAAA_QECxAEAAAD9AQjFAQAAAP0BCMoBAADSAv0BIgjDARAAAAABxAEQAAAABMUBEAAAAATGARAAAAABxwEQAAAAAcgBEAAAAAHJARAAAAABygEQANACACEEwwEAAACCAgLEAQAAAIICCMUBAAAAggIIygEAAM4CggIiAtABAQAAAAGIAgEAAAABFQMAAPECACALAACJAwAgDgAA7QIAIBAAAOwCACC7AQAAiAMAMLwBAAANABC9AQAAiAMAML4BAQDhAgAhwgFAAOkCACHPAQEA4gIAIdABAQDhAgAh2QEgAOYCACHaAUAA5wIAIdsBQADpAgAhhAIBAOECACGFAgEA4gIAIYYCAQDiAgAhhwIBAOICACGIAgEA4gIAIYkCAQDhAgAhigIAAOUCACADmgIAACwAIJsCAAAsACCcAgAALAAgDgMAAPECACAEAACLAwAguwEAAIoDADC8AQAABwAQvQEAAIoDADC-AQEA4QIAIcIBQADpAgAh0AEBAOECACHcAQEA4gIAId0BAQDhAgAh3gEBAOECACHfAQEA4QIAIeABAADlAgAg4QEAAOUCACAVAwAA8QIAIAUAAO4CACC7AQAAjAMAMLwBAAADABC9AQAAjAMAML4BAQDhAgAhwgFAAOkCACHQAQEA4QIAIdkBIADmAgAh2gFAAOcCACHbAUAA6QIAIYQCAQDhAgAhhgIBAOECACGLAgEA4QIAIY0CAACNA40CIo4CQADnAgAhjwIBAOICACGQAgEA4gIAIZECQADnAgAhoAIAAAMAIKECAAADACATAwAA8QIAIAUAAO4CACC7AQAAjAMAMLwBAAADABC9AQAAjAMAML4BAQDhAgAhwgFAAOkCACHQAQEA4QIAIdkBIADmAgAh2gFAAOcCACHbAUAA6QIAIYQCAQDhAgAhhgIBAOECACGLAgEA4QIAIY0CAACNA40CIo4CQADnAgAhjwIBAOICACGQAgEA4gIAIZECQADnAgAhBMMBAAAAjQICxAEAAACNAgjFAQAAAI0CCMoBAADYAo0CIgAAAAABpQIBAAAAAQGlAgEAAAABAaUCQAAAAAEFHwAAhgYAICAAAIkGACCiAgAAhwYAIKMCAACIBgAgqAIAABcAIAMfAACGBgAgogIAAIcGACCoAgAAFwAgAAAABR8AAP4FACAgAACEBgAgogIAAP8FACCjAgAAgwYAIKgCAAAXACAFHwAA_AUAICAAAIEGACCiAgAA_QUAIKMCAACABgAgqAIAAC4AIAMfAAD-BQAgogIAAP8FACCoAgAAFwAgAx8AAPwFACCiAgAA_QUAIKgCAAAuACAAAAABpQJAAAAAAQGlAiAAAAABBR8AAPYFACAgAAD6BQAgogIAAPcFACCjAgAA-QUAIKgCAAAPACALHwAApQMAMCAAAKoDADCiAgAApgMAMKMCAACnAwAwpAIAAKgDACClAgAAqQMAMKYCAACpAwAwpwIAAKkDADCoAgAAqQMAMKkCAACrAwAwqgIAAKwDADAECAAAnAMAIL4BAQAAAAG_AQEAAAABzwEBAAAAAQIAAAAbACAfAACwAwAgAwAAABsAIB8AALADACAgAACvAwAgARgAAPgFADAKCAAA9gIAIAsAAPkCACC7AQAA-AIAMLwBAAAZABC9AQAA-AIAML4BAQAAAAG_AQEA4QIAIc4BAQDhAgAhzwEBAOICACGdAgAA9wIAIAIAAAAbACAYAACvAwAgAgAAAK0DACAYAACuAwAgB7sBAACsAwAwvAEAAK0DABC9AQAArAMAML4BAQDhAgAhvwEBAOECACHOAQEA4QIAIc8BAQDiAgAhB7sBAACsAwAwvAEAAK0DABC9AQAArAMAML4BAQDhAgAhvwEBAOECACHOAQEA4QIAIc8BAQDiAgAhA74BAQCSAwAhvwEBAJIDACHPAQEAkwMAIQQIAACaAwAgvgEBAJIDACG_AQEAkgMAIc8BAQCTAwAhBAgAAJwDACC-AQEAAAABvwEBAAAAAc8BAQAAAAEDHwAA9gUAIKICAAD3BQAgqAIAAA8AIAQfAAClAwAwogIAAKYDADCkAgAAqAMAIKgCAACpAwAwAAAABR8AAO4FACAgAAD0BQAgogIAAO8FACCjAgAA8wUAIKgCAAABACAHHwAA7AUAICAAAPEFACCiAgAA7QUAIKMCAADwBQAgpgIAAAMAIKcCAAADACCoAgAABQAgAx8AAO4FACCiAgAA7wUAIKgCAAABACADHwAA7AUAIKICAADtBQAgqAIAAAUAIAAAAAAABaUCAgAAAAGrAgIAAAABrAICAAAAAa0CAgAAAAGuAgIAAAABAaUCAAAA6wEDAaUCAAAA7wECBaUCEAAAAAGrAhAAAAABrAIQAAAAAa0CEAAAAAGuAhAAAAABBaUCAgAAAAGrAgIAAAABrAICAAAAAa0CAgAAAAGuAgIAAAABCx8AANYDADAgAADaAwAwogIAANcDADCjAgAA2AMAMKQCAADZAwAgpQIAAKkDADCmAgAAqQMAMKcCAACpAwAwqAIAAKkDADCpAgAA2wMAMKoCAACsAwAwCx8AAMoDADAgAADPAwAwogIAAMsDADCjAgAAzAMAMKQCAADNAwAgpQIAAM4DADCmAgAAzgMAMKcCAADOAwAwqAIAAM4DADCpAgAA0AMAMKoCAADRAwAwBR8AANwFACAgAADqBQAgogIAAN0FACCjAgAA6QUAIKgCAAABACAHHwAA2gUAICAAAOcFACCiAgAA2wUAIKMCAADmBQAgpgIAABEAIKcCAAARACCoAgAAEwAgBR8AANgFACAgAADkBQAgogIAANkFACCjAgAA4wUAIKgCAAAPACAHHwAA1gUAICAAAOEFACCiAgAA1wUAIKMCAADgBQAgpgIAACQAIKcCAAAkACCoAgAANwAgBL4BAQAAAAHAAQEAAAABwQEBAAAAAcIBQAAAAAECAAAAIQAgHwAA1QMAIAMAAAAhACAfAADVAwAgIAAA1AMAIAEYAADfBQAwCQgAAPYCACC7AQAA9QIAMLwBAAAfABC9AQAA9QIAML4BAQAAAAG_AQEA4QIAIcABAQDhAgAhwQEBAOICACHCAUAA6QIAIQIAAAAhACAYAADUAwAgAgAAANIDACAYAADTAwAgCLsBAADRAwAwvAEAANIDABC9AQAA0QMAML4BAQDhAgAhvwEBAOECACHAAQEA4QIAIcEBAQDiAgAhwgFAAOkCACEIuwEAANEDADC8AQAA0gMAEL0BAADRAwAwvgEBAOECACG_AQEA4QIAIcABAQDhAgAhwQEBAOICACHCAUAA6QIAIQS-AQEAkgMAIcABAQCSAwAhwQEBAJMDACHCAUAAlAMAIQS-AQEAkgMAIcABAQCSAwAhwQEBAJMDACHCAUAAlAMAIQS-AQEAAAABwAEBAAAAAcEBAQAAAAHCAUAAAAABBAsAAJ0DACC-AQEAAAABzgEBAAAAAc8BAQAAAAECAAAAGwAgHwAA3gMAIAMAAAAbACAfAADeAwAgIAAA3QMAIAEYAADeBQAwAgAAABsAIBgAAN0DACACAAAArQMAIBgAANwDACADvgEBAJIDACHOAQEAkgMAIc8BAQCTAwAhBAsAAJsDACC-AQEAkgMAIc4BAQCSAwAhzwEBAJMDACEECwAAnQMAIL4BAQAAAAHOAQEAAAABzwEBAAAAAQQfAADWAwAwogIAANcDADCkAgAA2QMAIKgCAACpAwAwBB8AAMoDADCiAgAAywMAMKQCAADNAwAgqAIAAM4DADADHwAA3AUAIKICAADdBQAgqAIAAAEAIAMfAADaBQAgogIAANsFACCoAgAAEwAgAx8AANgFACCiAgAA2QUAIKgCAAAPACADHwAA1gUAIKICAADXBQAgqAIAADcAIAAAAAAAAaUCAAAA_QECBaUCEAAAAAGrAhAAAAABrAIQAAAAAa0CEAAAAAGuAhAAAAABAaUCAAAAggICCx8AAPADADAgAAD1AwAwogIAAPEDADCjAgAA8gMAMKQCAADzAwAgpQIAAPQDADCmAgAA9AMAMKcCAAD0AwAwqAIAAPQDADCpAgAA9gMAMKoCAAD3AwAwBR8AAM0FACAgAADUBQAgogIAAM4FACCjAgAA0wUAIKgCAAABACAFHwAAywUAICAAANEFACCiAgAAzAUAIKMCAADQBQAgqAIAAA8AIB0DAADhAwAgCQAA4wMAIAsAAN8DACAMAADgAwAgDwAA5AMAIL4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHRAQEAAAAB2gFAAAAAAdsBQAAAAAHoAQIAAAAB6wEAAADrAQPsAUAAAAAB7QFAAAAAAe8BAAAA7wEC8AEQAAAAAfEBIAAAAAHyAQEAAAAB8wEBAAAAAfQBAQAAAAH1AQIAAAAB9gEBAAAAAfcBQAAAAAH4AUAAAAAB-QEBAAAAAfoBAQAAAAH7AQEAAAABAgAAABcAIB8AAPsDACADAAAAFwAgHwAA-wMAICAAAPoDACABGAAAzwUAMCMDAADxAgAgCQAA8wIAIAsAAPQCACAMAACAAwAgDQAAgQMAIA8AAIIDACC7AQAA-wIAMLwBAAAVABC9AQAA-wIAML4BAQAAAAHCAUAA6QIAIc8BAQDiAgAh0AEBAOECACHRAQEA4QIAIdoBQADnAgAh2wFAAOkCACHoAQIA6AIAIekBAQDiAgAh6wEAAPwC6wEj7AFAAOkCACHtAUAA5wIAIe8BAAD9Au8BIvABEAD-AgAh8QEgAOYCACHyAQEA4gIAIfMBAQDiAgAh9AEBAOICACH1AQIA_wIAIfYBAQAAAAH3AUAA5wIAIfgBQADnAgAh-QEBAOICACH6AQEA4gIAIfsBAQDiAgAhngIAAPoCACACAAAAFwAgGAAA-gMAIAIAAAD4AwAgGAAA-QMAIBy7AQAA9wMAMLwBAAD4AwAQvQEAAPcDADC-AQEA4QIAIcIBQADpAgAhzwEBAOICACHQAQEA4QIAIdEBAQDhAgAh2gFAAOcCACHbAUAA6QIAIegBAgDoAgAh6QEBAOICACHrAQAA_ALrASPsAUAA6QIAIe0BQADnAgAh7wEAAP0C7wEi8AEQAP4CACHxASAA5gIAIfIBAQDiAgAh8wEBAOICACH0AQEA4gIAIfUBAgD_AgAh9gEBAOICACH3AUAA5wIAIfgBQADnAgAh-QEBAOICACH6AQEA4gIAIfsBAQDiAgAhHLsBAAD3AwAwvAEAAPgDABC9AQAA9wMAML4BAQDhAgAhwgFAAOkCACHPAQEA4gIAIdABAQDhAgAh0QEBAOECACHaAUAA5wIAIdsBQADpAgAh6AECAOgCACHpAQEA4gIAIesBAAD8AusBI-wBQADpAgAh7QFAAOcCACHvAQAA_QLvASLwARAA_gIAIfEBIADmAgAh8gEBAOICACHzAQEA4gIAIfQBAQDiAgAh9QECAP8CACH2AQEA4gIAIfcBQADnAgAh-AFAAOcCACH5AQEA4gIAIfoBAQDiAgAh-wEBAOICACEYvgEBAJIDACHCAUAAlAMAIc8BAQCTAwAh0AEBAJIDACHRAQEAkgMAIdoBQAChAwAh2wFAAJQDACHoAQIAvwMAIesBAADAA-sBI-wBQACUAwAh7QFAAKEDACHvAQAAwQPvASLwARAAwgMAIfEBIACiAwAh8gEBAJMDACHzAQEAkwMAIfQBAQCTAwAh9QECAMMDACH2AQEAkwMAIfcBQAChAwAh-AFAAKEDACH5AQEAkwMAIfoBAQCTAwAh-wEBAJMDACEdAwAAxgMAIAkAAMgDACALAADEAwAgDAAAxQMAIA8AAMkDACC-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdEBAQCSAwAh2gFAAKEDACHbAUAAlAMAIegBAgC_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-sBI-wBQACUAwAh7QFAAKEDACHvAQAAwQPvASLwARAAwgMAIfEBIACiAwAh8gEBAJMDACHzAQEAkwMAIfQBAQCTAwAh9QECAMMDACH2AQEAkwMAIfcBQAChAwAh-AFAAKEDACH5AQEAkwMAIfoBAQCTAwAh-wEBAJMDACEdAwAAxgMAIAsAAMQDACAMAADFAwAgDQAAxwMAIA8AAMkDACC-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdoBQAChAwAh2wFAAJQDACHoAQIAvwMAIekBAQCTAwAh6wEAAMAD6wEj7AFAAJQDACHtAUAAoQMAIe8BAADBA-8BIvABEADCAwAh8QEgAKIDACHyAQEAkwMAIfMBAQCTAwAh9AEBAJMDACH1AQIAwwMAIfYBAQCTAwAh9wFAAKEDACH4AUAAoQMAIfkBAQCTAwAh-gEBAJMDACH7AQEAkwMAIR0DAADhAwAgCwAA3wMAIAwAAOADACANAADiAwAgDwAA5AMAIL4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHaAUAAAAAB2wFAAAAAAegBAgAAAAHpAQEAAAAB6wEAAADrAQPsAUAAAAAB7QFAAAAAAe8BAAAA7wEC8AEQAAAAAfEBIAAAAAHyAQEAAAAB8wEBAAAAAfQBAQAAAAH1AQIAAAAB9gEBAAAAAfcBQAAAAAH4AUAAAAAB-QEBAAAAAfoBAQAAAAH7AQEAAAABEQMAAP0DACAOAAD8AwAgvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdoBQAAAAAHbAUAAAAAB6wEAAADrAQPvAQAAAIICAvABEAAAAAH9AQAAAP0BAv4BQAAAAAH_AUAAAAABgAJAAAAAAYICAgAAAAGDAkAAAAABAgAAABMAIB8AAKYEACADAAAAEwAgHwAApgQAICAAAKUEACABGAAAxQUAMBYDAADxAgAgCQAA8wIAIA4AAO0CACC7AQAAgwMAMLwBAAARABC9AQAAgwMAML4BAQAAAAHCAUAA6QIAIc8BAQDiAgAh0AEBAOECACHRAQEA4QIAIdoBQADnAgAh2wFAAOkCACHrAQAA_ALrASPvAQAAhgOCAiLwARAAhQMAIf0BAACEA_0BIv4BQADpAgAh_wFAAOkCACGAAkAA5wIAIYICAgDoAgAhgwJAAOcCACECAAAAEwAgGAAApQQAIAIAAACjBAAgGAAApAQAIBO7AQAAogQAMLwBAACjBAAQvQEAAKIEADC-AQEA4QIAIcIBQADpAgAhzwEBAOICACHQAQEA4QIAIdEBAQDhAgAh2gFAAOcCACHbAUAA6QIAIesBAAD8AusBI-8BAACGA4ICIvABEACFAwAh_QEAAIQD_QEi_gFAAOkCACH_AUAA6QIAIYACQADnAgAhggICAOgCACGDAkAA5wIAIRO7AQAAogQAMLwBAACjBAAQvQEAAKIEADC-AQEA4QIAIcIBQADpAgAhzwEBAOICACHQAQEA4QIAIdEBAQDhAgAh2gFAAOcCACHbAUAA6QIAIesBAAD8AusBI-8BAACGA4ICIvABEACFAwAh_QEAAIQD_QEi_gFAAOkCACH_AUAA6QIAIYACQADnAgAhggICAOgCACGDAkAA5wIAIQ--AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdoBQAChAwAh2wFAAJQDACHrAQAAwAPrASPvAQAA7AOCAiLwARAA6wMAIf0BAADqA_0BIv4BQACUAwAh_wFAAJQDACGAAkAAoQMAIYICAgC_AwAhgwJAAKEDACERAwAA7gMAIA4AAO0DACC-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdoBQAChAwAh2wFAAJQDACHrAQAAwAPrASPvAQAA7AOCAiLwARAA6wMAIf0BAADqA_0BIv4BQACUAwAh_wFAAJQDACGAAkAAoQMAIYICAgC_AwAhgwJAAKEDACERAwAA_QMAIA4AAPwDACC-AQEAAAABwgFAAAAAAc8BAQAAAAHQAQEAAAAB2gFAAAAAAdsBQAAAAAHrAQAAAOsBA-8BAAAAggIC8AEQAAAAAf0BAAAA_QEC_gFAAAAAAf8BQAAAAAGAAkAAAAABggICAAAAAYMCQAAAAAEEHwAAmwQAMKICAACcBAAwpAIAAJ4EACCoAgAAnwQAMAQfAACSBAAwogIAAJMEADCkAgAAlQQAIKgCAAD0AwAwBB8AAIYEADCiAgAAhwQAMKQCAACJBAAgqAIAAIoEADADHwAAwwUAIKICAADEBQAgqAIAAAEAIAAAAAsfAACwBAAwIAAAtAQAMKICAACxBAAwowIAALIEADCkAgAAswQAIKUCAAD0AwAwpgIAAPQDADCnAgAA9AMAMKgCAAD0AwAwqQIAALUEADCqAgAA9wMAMAUfAAC9BQAgIAAAwQUAIKICAAC-BQAgowIAAMAFACCoAgAAAQAgHQMAAOEDACAJAADjAwAgCwAA3wMAIAwAAOADACANAADiAwAgvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdEBAQAAAAHaAUAAAAAB2wFAAAAAAegBAgAAAAHpAQEAAAAB6wEAAADrAQPsAUAAAAAB7QFAAAAAAe8BAAAA7wEC8AEQAAAAAfEBIAAAAAHzAQEAAAAB9AEBAAAAAfUBAgAAAAH2AQEAAAAB9wFAAAAAAfgBQAAAAAH5AQEAAAAB-gEBAAAAAfsBAQAAAAECAAAAFwAgHwAAuAQAIAMAAAAXACAfAAC4BAAgIAAAtwQAIAEYAAC_BQAwAgAAABcAIBgAALcEACACAAAA-AMAIBgAALYEACAYvgEBAJIDACHCAUAAlAMAIc8BAQCTAwAh0AEBAJIDACHRAQEAkgMAIdoBQAChAwAh2wFAAJQDACHoAQIAvwMAIekBAQCTAwAh6wEAAMAD6wEj7AFAAJQDACHtAUAAoQMAIe8BAADBA-8BIvABEADCAwAh8QEgAKIDACHzAQEAkwMAIfQBAQCTAwAh9QECAMMDACH2AQEAkwMAIfcBQAChAwAh-AFAAKEDACH5AQEAkwMAIfoBAQCTAwAh-wEBAJMDACEdAwAAxgMAIAkAAMgDACALAADEAwAgDAAAxQMAIA0AAMcDACC-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdEBAQCSAwAh2gFAAKEDACHbAUAAlAMAIegBAgC_AwAh6QEBAJMDACHrAQAAwAPrASPsAUAAlAMAIe0BQAChAwAh7wEAAMED7wEi8AEQAMIDACHxASAAogMAIfMBAQCTAwAh9AEBAJMDACH1AQIAwwMAIfYBAQCTAwAh9wFAAKEDACH4AUAAoQMAIfkBAQCTAwAh-gEBAJMDACH7AQEAkwMAIR0DAADhAwAgCQAA4wMAIAsAAN8DACAMAADgAwAgDQAA4gMAIL4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHRAQEAAAAB2gFAAAAAAdsBQAAAAAHoAQIAAAAB6QEBAAAAAesBAAAA6wED7AFAAAAAAe0BQAAAAAHvAQAAAO8BAvABEAAAAAHxASAAAAAB8wEBAAAAAfQBAQAAAAH1AQIAAAAB9gEBAAAAAfcBQAAAAAH4AUAAAAAB-QEBAAAAAfoBAQAAAAH7AQEAAAABBB8AALAEADCiAgAAsQQAMKQCAACzBAAgqAIAAPQDADADHwAAvQUAIKICAAC-BQAgqAIAAAEAIAAAAAGlAgAAAI0CAgsfAADBBAAwIAAAxgQAMKICAADCBAAwowIAAMMEADCkAgAAxAQAIKUCAADFBAAwpgIAAMUEADCnAgAAxQQAMKgCAADFBAAwqQIAAMcEADCqAgAAyAQAMAUfAAC3BQAgIAAAuwUAIKICAAC4BQAgowIAALoFACCoAgAAAQAgCQMAALgDACC-AQEAAAABwgFAAAAAAdABAQAAAAHdAQEAAAAB3gEBAAAAAd8BAQAAAAHgAYAAAAAB4QGAAAAAAQIAAAAJACAfAADMBAAgAwAAAAkAIB8AAMwEACAgAADLBAAgARgAALkFADAOAwAA8QIAIAQAAIsDACC7AQAAigMAMLwBAAAHABC9AQAAigMAML4BAQAAAAHCAUAA6QIAIdABAQDhAgAh3AEBAOICACHdAQEA4QIAId4BAQDhAgAh3wEBAOECACHgAQAA5QIAIOEBAADlAgAgAgAAAAkAIBgAAMsEACACAAAAyQQAIBgAAMoEACAMuwEAAMgEADC8AQAAyQQAEL0BAADIBAAwvgEBAOECACHCAUAA6QIAIdABAQDhAgAh3AEBAOICACHdAQEA4QIAId4BAQDhAgAh3wEBAOECACHgAQAA5QIAIOEBAADlAgAgDLsBAADIBAAwvAEAAMkEABC9AQAAyAQAML4BAQDhAgAhwgFAAOkCACHQAQEA4QIAIdwBAQDiAgAh3QEBAOECACHeAQEA4QIAId8BAQDhAgAh4AEAAOUCACDhAQAA5QIAIAi-AQEAkgMAIcIBQACUAwAh0AEBAJIDACHdAQEAkgMAId4BAQCSAwAh3wEBAJIDACHgAYAAAAAB4QGAAAAAAQkDAAC2AwAgvgEBAJIDACHCAUAAlAMAIdABAQCSAwAh3QEBAJIDACHeAQEAkgMAId8BAQCSAwAh4AGAAAAAAeEBgAAAAAEJAwAAuAMAIL4BAQAAAAHCAUAAAAAB0AEBAAAAAd0BAQAAAAHeAQEAAAAB3wEBAAAAAeABgAAAAAHhAYAAAAABBB8AAMEEADCiAgAAwgQAMKQCAADEBAAgqAIAAMUEADADHwAAtwUAIKICAAC4BQAgqAIAAAEAIAAAAAAAAaUCAAAAkwICAaUCAAAAlQICCx8AAI8FADAgAACUBQAwogIAAJAFADCjAgAAkQUAMKQCAACSBQAgpQIAAJMFADCmAgAAkwUAMKcCAACTBQAwqAIAAJMFADCpAgAAlQUAMKoCAACWBQAwCx8AAIMFADAgAACIBQAwogIAAIQFADCjAgAAhQUAMKQCAACGBQAgpQIAAIcFADCmAgAAhwUAMKcCAACHBQAwqAIAAIcFADCpAgAAiQUAMKoCAACKBQAwCx8AAPoEADAgAAD-BAAwogIAAPsEADCjAgAA_AQAMKQCAAD9BAAgpQIAAJ8EADCmAgAAnwQAMKcCAACfBAAwqAIAAJ8EADCpAgAA_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_AwAh6QEBAJMDACHrAQAAwAPrASPsAUAAlAMAIe0BQAChAwAh7wEAAMED7wEi8AEQAMIDACHxASAAogMAIfIBAQCTAwAh8wEBAJMDACH0AQEAkwMAIfUBAgDDAwAh9gEBAJMDACH3AUAAoQMAIfgBQAChAwAh-QEBAJMDACH6AQEAkwMAIfsBAQCTAwAhHQkAAMgDACALAADEAwAgDAAAxQMAIA0AAMcDACAPAADJAwAgvgEBAJIDACHCAUAAlAMAIc8BAQCTAwAh0QEBAJIDACHaAUAAoQMAIdsBQACUAwAh6AECAL8DACHpAQEAkwMAIesBAADAA-sBI-wBQACUAwAh7QFAAKEDACHvAQAAwQPvASLwARAAwgMAIfEBIACiAwAh8gEBAJMDACHzAQEAkwMAIfQBAQCTAwAh9QECAMMDACH2AQEAkwMAIfcBQAChAwAh-AFAAKEDACH5AQEAkwMAIfoBAQCTAwAh-wEBAJMDACEdCQAA4wMAIAsAAN8DACAMAADgAwAgDQAA4gMAIA8AAOQDACC-AQEAAAABwgFAAAAAAc8BAQAAAAHRAQEAAAAB2gFAAAAAAdsBQAAAAAHoAQIAAAAB6QEBAAAAAesBAAAA6wED7AFAAAAAAe0BQAAAAAHvAQAAAO8BAvABEAAAAAHxASAAAAAB8gEBAAAAAfMBAQAAAAH0AQEAAAAB9QECAAAAAfYBAQAAAAH3AUAAAAAB-AFAAAAAAfkBAQAAAAH6AQEAAAAB-wEBAAAAAREJAAD-AwAgDgAA_AMAIL4BAQAAAAHCAUAAAAABzwEBAAAAAdEBAQAAAAHaAUAAAAAB2wFAAAAAAesBAAAA6wED7wEAAACCAgLwARAAAAAB_QEAAAD9AQL-AUAAAAAB_wFAAAAAAYACQAAAAAGCAgIAAAABgwJAAAAAAQIAAAATACAfAACCBQAgAwAAABMAIB8AAIIFACAgAACBBQAgARgAALMFADACAAAAEwAgGAAAgQUAIAIAAACjBAAgGAAAgAUAIA--AQEAkgMAIcIBQACUAwAhzwEBAJMDACHRAQEAkgMAIdoBQAChAwAh2wFAAJQDACHrAQAAwAPrASPvAQAA7AOCAiLwARAA6wMAIf0BAADqA_0BIv4BQACUAwAh_wFAAJQDACGAAkAAoQMAIYICAgC_AwAhgwJAAKEDACERCQAA7wMAIA4AAO0DACC-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHRAQEAkgMAIdoBQAChAwAh2wFAAJQDACHrAQAAwAPrASPvAQAA7AOCAiLwARAA6wMAIf0BAADqA_0BIv4BQACUAwAh_wFAAJQDACGAAkAAoQMAIYICAgC_AwAhgwJAAKEDACERCQAA_gMAIA4AAPwDACC-AQEAAAABwgFAAAAAAc8BAQAAAAHRAQEAAAAB2gFAAAAAAdsBQAAAAAHrAQAAAOsBA-8BAAAAggIC8AEQAAAAAf0BAAAA_QEC_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_QQAIKgCAACfBAAwBB8AAPEEADCiAgAA8gQAMKQCAAD0BAAgqAIAAPQDADAEHwAA6AQAMKICAADpBAAwpAIAAOsEACCoAgAAxQQAMAQfAADcBAAwogIAAN0EADCkAgAA3wQAIKgCAADgBAAwAAAAAAAADgUAAKUFACAHAAChBQAgDgAApAUAIBAAAKMFACARAACiBQAgEgAApgUAIIUCAACOAwAghgIAAI4DACCHAgAAjgMAIIgCAACOAwAgigIAAI4DACCWAgAAjgMAIJcCAACOAwAgmAIAAI4DACALAwAApwUAIAsAAK8FACAOAACkBQAgEAAAowUAIM8BAACOAwAg2gEAAI4DACCFAgAAjgMAIIYCAACOAwAghwIAAI4DACCIAgAAjgMAIIoCAACOAwAgABYDAACnBQAgCQAAqAUAIAsAAKkFACAMAACsBQAgDQAArQUAIA8AAK4FACDPAQAAjgMAINoBAACOAwAg6QEAAI4DACDrAQAAjgMAIO0BAACOAwAg8AEAAI4DACDyAQAAjgMAIPMBAACOAwAg9AEAAI4DACD1AQAAjgMAIPYBAACOAwAg9wEAAI4DACD4AQAAjgMAIPkBAACOAwAg-gEAAI4DACD7AQAAjgMAIAoJAACoBQAgCgAAqQUAIM8BAACOAwAg0wEAAI4DACDUAQAAjgMAINUBAACOAwAg1gEAAI4DACDXAQAAjgMAINgBAACOAwAg2gEAAI4DACAACAMAAKcFACAJAACoBQAgDgAApAUAIM8BAACOAwAg2gEAAI4DACDrAQAAjgMAIIACAACOAwAggwIAAI4DACAFAwAApwUAIA4AAKQFACDaAQAAjgMAIIYCAACOAwAghwIAAI4DACAABwMAAKcFACAFAAClBQAg2gEAAI4DACCOAgAAjgMAII8CAACOAwAgkAIAAI4DACCRAgAAjgMAIA2-AQEAAAABwgFAAAAAAdkBIAAAAAHaAUAAAAAB2wFAAAAAAYQCAQAAAAGGAgEAAAABiwIBAAAAAY0CAAAAjQICjgJAAAAAAY8CAQAAAAGQAgEAAAABkQJAAAAAAQ2-AQEAAAABwgFAAAAAAc8BAQAAAAHZASAAAAAB2gFAAAAAAdsBQAAAAAGEAgEAAAABhQIBAAAAAYYCAQAAAAGHAgEAAAABiAIBAAAAAYkCAQAAAAGKAoAAAAABD74BAQAAAAHCAUAAAAABzwEBAAAAAdEBAQAAAAHaAUAAAAAB2wFAAAAAAesBAAAA6wED7wEAAACCAgLwARAAAAAB_QEAAAD9AQL-AUAAAAAB_wFAAAAAAYACQAAAAAGCAgIAAAABgwJAAAAAARi-AQEAAAABwgFAAAAAAc8BAQAAAAHRAQEAAAAB2gFAAAAAAdsBQAAAAAHoAQIAAAAB6QEBAAAAAesBAAAA6wED7AFAAAAAAe0BQAAAAAHvAQAAAO8BAvABEAAAAAHxASAAAAAB8gEBAAAAAfMBAQAAAAH0AQEAAAAB9QECAAAAAfYBAQAAAAH3AUAAAAAB-AFAAAAAAfkBAQAAAAH6AQEAAAAB-wEBAAAAAQi-AQEAAAABwgFAAAAAAdwBAQAAAAHdAQEAAAAB3gEBAAAAAd8BAQAAAAHgAYAAAAAB4QGAAAAAAQi-AQEAAAABwgFAAAAAAdkBIAAAAAHaAUAAAAAB2wFAAAAAAYQCAQAAAAGGAgEAAAABhwIBAAAAARUFAACfBQAgDgAAngUAIBAAAJ0FACARAACcBQAgEgAAoAUAIL4BAQAAAAHCAUAAAAAB2QEgAAAAAdsBQAAAAAGEAgEAAAABhQIBAAAAAYYCAQAAAAGHAgEAAAABiAIBAAAAAYoCgAAAAAGTAgAAAJMCApUCAAAAlQIClgIBAAAAAZcCQAAAAAGYAkAAAAABmQICAAAAAQIAAAABACAfAAC3BQAgCL4BAQAAAAHCAUAAAAAB0AEBAAAAAd0BAQAAAAHeAQEAAAAB3wEBAAAAAeABgAAAAAHhAYAAAAABAwAAAEAAIB8AALcFACAgAAC8BQAgFwAAAEAAIAUAANoEACAOAADZBAAgEAAA2AQAIBEAANcEACASAADbBAAgGAAAvAUAIL4BAQCSAwAhwgFAAJQDACHZASAAogMAIdsBQACUAwAhhAIBAJIDACGFAgEAkwMAIYYCAQCTAwAhhwIBAJMDACGIAgEAkwMAIYoCgAAAAAGTAgAA1ASTAiKVAgAA1QSVAiKWAgEAkwMAIZcCQAChAwAhmAJAAKEDACGZAgIAvwMAIRUFAADaBAAgDgAA2QQAIBAAANgEACARAADXBAAgEgAA2wQAIL4BAQCSAwAhwgFAAJQDACHZASAAogMAIdsBQACUAwAhhAIBAJIDACGFAgEAkwMAIYYCAQCTAwAhhwIBAJMDACGIAgEAkwMAIYoCgAAAAAGTAgAA1ASTAiKVAgAA1QSVAiKWAgEAkwMAIZcCQAChAwAhmAJAAKEDACGZAgIAvwMAIRUFAACfBQAgBwAAmwUAIA4AAJ4FACAQAACdBQAgEQAAnAUAIL4BAQAAAAHCAUAAAAAB2QEgAAAAAdsBQAAAAAGEAgEAAAABhQIBAAAAAYYCAQAAAAGHAgEAAAABiAIBAAAAAYoCgAAAAAGTAgAAAJMCApUCAAAAlQIClgIBAAAAAZcCQAAAAAGYAkAAAAABmQICAAAAAQIAAAABACAfAAC9BQAgGL4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHRAQEAAAAB2gFAAAAAAdsBQAAAAAHoAQIAAAAB6QEBAAAAAesBAAAA6wED7AFAAAAAAe0BQAAAAAHvAQAAAO8BAvABEAAAAAHxASAAAAAB8wEBAAAAAfQBAQAAAAH1AQIAAAAB9gEBAAAAAfcBQAAAAAH4AUAAAAAB-QEBAAAAAfoBAQAAAAH7AQEAAAABAwAAAEAAIB8AAL0FACAgAADCBQAgFwAAAEAAIAUAANoEACAHAADWBAAgDgAA2QQAIBAAANgEACARAADXBAAgGAAAwgUAIL4BAQCSAwAhwgFAAJQDACHZASAAogMAIdsBQACUAwAhhAIBAJIDACGFAgEAkwMAIYYCAQCTAwAhhwIBAJMDACGIAgEAkwMAIYoCgAAAAAGTAgAA1ASTAiKVAgAA1QSVAiKWAgEAkwMAIZcCQAChAwAhmAJAAKEDACGZAgIAvwMAIRUFAADaBAAgBwAA1gQAIA4AANkEACAQAADYBAAgEQAA1wQAIL4BAQCSAwAhwgFAAJQDACHZASAAogMAIdsBQACUAwAhhAIBAJIDACGFAgEAkwMAIYYCAQCTAwAhhwIBAJMDACGIAgEAkwMAIYoCgAAAAAGTAgAA1ASTAiKVAgAA1QSVAiKWAgEAkwMAIZcCQAChAwAhmAJAAKEDACGZAgIAvwMAIRUFAACfBQAgBwAAmwUAIA4AAJ4FACAQAACdBQAgEgAAoAUAIL4BAQAAAAHCAUAAAAAB2QEgAAAAAdsBQAAAAAGEAgEAAAABhQIBAAAAAYYCAQAAAAGHAgEAAAABiAIBAAAAAYoCgAAAAAGTAgAAAJMCApUCAAAAlQIClgIBAAAAAZcCQAAAAAGYAkAAAAABmQICAAAAAQIAAAABACAfAADDBQAgD74BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHaAUAAAAAB2wFAAAAAAesBAAAA6wED7wEAAACCAgLwARAAAAAB_QEAAAD9AQL-AUAAAAAB_wFAAAAAAYACQAAAAAGCAgIAAAABgwJAAAAAARi-AQEAAAABwgFAAAAAAc8BAQAAAAHQAQEAAAAB2gFAAAAAAdsBQAAAAAHoAQIAAAAB6QEBAAAAAesBAAAA6wED7AFAAAAAAe0BQAAAAAHvAQAAAO8BAvABEAAAAAHxASAAAAAB8gEBAAAAAfMBAQAAAAH0AQEAAAAB9QECAAAAAfYBAQAAAAH3AUAAAAAB-AFAAAAAAfkBAQAAAAH6AQEAAAAB-wEBAAAAAQ6-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_gMAIL4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHRAQEAAAAB2gFAAAAAAdsBQAAAAAHrAQAAAOsBA-8BAAAAggIC8AEQAAAAAf0BAAAA_QEC_gFAAAAAAf8BQAAAAAGAAkAAAAABggICAAAAAYMCQAAAAAECAAAAEwAgHwAA2gUAIBUFAACfBQAgBwAAmwUAIBAAAJ0FACARAACcBQAgEgAAoAUAIL4BAQAAAAHCAUAAAAAB2QEgAAAAAdsBQAAAAAGEAgEAAAABhQIBAAAAAYYCAQAAAAGHAgEAAAABiAIBAAAAAYoCgAAAAAGTAgAAAJMCApUCAAAAlQIClgIBAAAAAZcCQAAAAAGYAkAAAAABmQICAAAAAQIAAAABACAfAADcBQAgA74BAQAAAAHOAQEAAAABzwEBAAAAAQS-AQEAAAABwAEBAAAAAcEBAQAAAAHCAUAAAAABAwAAACQAIB8AANYFACAgAADiBQAgDAAAACQAIAMAAK8EACAYAADiBQAgvgEBAJIDACHCAUAAlAMAIdABAQCSAwAh2QEgAKIDACHaAUAAoQMAIdsBQACUAwAhhAIBAJIDACGGAgEAkwMAIYcCAQCTAwAhCgMAAK8EACC-AQEAkgMAIcIBQACUAwAh0AEBAJIDACHZASAAogMAIdoBQAChAwAh2wFAAJQDACGEAgEAkgMAIYYCAQCTAwAhhwIBAJMDACEDAAAADQAgHwAA2AUAICAAAOUFACATAAAADQAgAwAAhQQAIAsAAIQEACAQAACCBAAgGAAA5QUAIL4BAQCSAwAhwgFAAJQDACHPAQEAkwMAIdABAQCSAwAh2QEgAKIDACHaAUAAoQMAIdsBQACUAwAhhAIBAJIDACGFAgEAkwMAIYYCAQCTAwAhhwIBAJMDACGIAgEAkwMAIYkCAQCSAwAhigKAAAAAAREDAACFBAAgCwAAhAQAIBAAAIIEACC-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdkBIACiAwAh2gFAAKEDACHbAUAAlAMAIYQCAQCSAwAhhQIBAJMDACGGAgEAkwMAIYcCAQCTAwAhiAIBAJMDACGJAgEAkgMAIYoCgAAAAAEDAAAAEQAgHwAA2gUAICAAAOgFACAUAAAAEQAgAwAA7gMAIAkAAO8DACAYAADoBQAgvgEBAJIDACHCAUAAlAMAIc8BAQCTAwAh0AEBAJIDACHRAQEAkgMAIdoBQAChAwAh2wFAAJQDACHrAQAAwAPrASPvAQAA7AOCAiLwARAA6wMAIf0BAADqA_0BIv4BQACUAwAh_wFAAJQDACGAAkAAoQMAIYICAgC_AwAhgwJAAKEDACESAwAA7gMAIAkAAO8DACC-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdEBAQCSAwAh2gFAAKEDACHbAUAAlAMAIesBAADAA-sBI-8BAADsA4ICIvABEADrAwAh_QEAAOoD_QEi_gFAAJQDACH_AUAAlAMAIYACQAChAwAhggICAL8DACGDAkAAoQMAIQMAAABAACAfAADcBQAgIAAA6wUAIBcAAABAACAFAADaBAAgBwAA1gQAIBAAANgEACARAADXBAAgEgAA2wQAIBgAAOsFACC-AQEAkgMAIcIBQACUAwAh2QEgAKIDACHbAUAAlAMAIYQCAQCSAwAhhQIBAJMDACGGAgEAkwMAIYcCAQCTAwAhiAIBAJMDACGKAoAAAAABkwIAANQEkwIilQIAANUElQIilgIBAJMDACGXAkAAoQMAIZgCQAChAwAhmQICAL8DACEVBQAA2gQAIAcAANYEACAQAADYBAAgEQAA1wQAIBIAANsEACC-AQEAkgMAIcIBQACUAwAh2QEgAKIDACHbAUAAlAMAIYQCAQCSAwAhhQIBAJMDACGGAgEAkwMAIYcCAQCTAwAhiAIBAJMDACGKAoAAAAABkwIAANQEkwIilQIAANUElQIilgIBAJMDACGXAkAAoQMAIZgCQAChAwAhmQICAL8DACEPAwAAzgQAIL4BAQAAAAHCAUAAAAAB0AEBAAAAAdkBIAAAAAHaAUAAAAAB2wFAAAAAAYQCAQAAAAGGAgEAAAABiwIBAAAAAY0CAAAAjQICjgJAAAAAAY8CAQAAAAGQAgEAAAABkQJAAAAAAQIAAAAFACAfAADsBQAgFQcAAJsFACAOAACeBQAgEAAAnQUAIBEAAJwFACASAACgBQAgvgEBAAAAAcIBQAAAAAHZASAAAAAB2wFAAAAAAYQCAQAAAAGFAgEAAAABhgIBAAAAAYcCAQAAAAGIAgEAAAABigKAAAAAAZMCAAAAkwIClQIAAACVAgKWAgEAAAABlwJAAAAAAZgCQAAAAAGZAgIAAAABAgAAAAEAIB8AAO4FACADAAAAAwAgHwAA7AUAICAAAPIFACARAAAAAwAgAwAAwAQAIBgAAPIFACC-AQEAkgMAIcIBQACUAwAh0AEBAJIDACHZASAAogMAIdoBQAChAwAh2wFAAJQDACGEAgEAkgMAIYYCAQCSAwAhiwIBAJIDACGNAgAAvgSNAiKOAkAAoQMAIY8CAQCTAwAhkAIBAJMDACGRAkAAoQMAIQ8DAADABAAgvgEBAJIDACHCAUAAlAMAIdABAQCSAwAh2QEgAKIDACHaAUAAoQMAIdsBQACUAwAhhAIBAJIDACGGAgEAkgMAIYsCAQCSAwAhjQIAAL4EjQIijgJAAKEDACGPAgEAkwMAIZACAQCTAwAhkQJAAKEDACEDAAAAQAAgHwAA7gUAICAAAPUFACAXAAAAQAAgBwAA1gQAIA4AANkEACAQAADYBAAgEQAA1wQAIBIAANsEACAYAAD1BQAgvgEBAJIDACHCAUAAlAMAIdkBIACiAwAh2wFAAJQDACGEAgEAkgMAIYUCAQCTAwAhhgIBAJMDACGHAgEAkwMAIYgCAQCTAwAhigKAAAAAAZMCAADUBJMCIpUCAADVBJUCIpYCAQCTAwAhlwJAAKEDACGYAkAAoQMAIZkCAgC_AwAhFQcAANYEACAOAADZBAAgEAAA2AQAIBEAANcEACASAADbBAAgvgEBAJIDACHCAUAAlAMAIdkBIACiAwAh2wFAAJQDACGEAgEAkgMAIYUCAQCTAwAhhgIBAJMDACGHAgEAkwMAIYgCAQCTAwAhigKAAAAAAZMCAADUBJMCIpUCAADVBJUCIpYCAQCTAwAhlwJAAKEDACGYAkAAoQMAIZkCAgC_AwAhEQMAAKoEACAOAACoBAAgEAAApwQAIL4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHZASAAAAAB2gFAAAAAAdsBQAAAAAGEAgEAAAABhQIBAAAAAYYCAQAAAAGHAgEAAAABiAIBAAAAAYkCAQAAAAGKAoAAAAABAgAAAA8AIB8AAPYFACADvgEBAAAAAb8BAQAAAAHPAQEAAAABAwAAAA0AIB8AAPYFACAgAAD7BQAgEwAAAA0AIAMAAIUEACAOAACDBAAgEAAAggQAIBgAAPsFACC-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdkBIACiAwAh2gFAAKEDACHbAUAAlAMAIYQCAQCSAwAhhQIBAJMDACGGAgEAkwMAIYcCAQCTAwAhiAIBAJMDACGJAgEAkgMAIYoCgAAAAAERAwAAhQQAIA4AAIMEACAQAACCBAAgvgEBAJIDACHCAUAAlAMAIc8BAQCTAwAh0AEBAJIDACHZASAAogMAIdoBQAChAwAh2wFAAJQDACGEAgEAkgMAIYUCAQCTAwAhhgIBAJMDACGHAgEAkwMAIYgCAQCTAwAhiQIBAJIDACGKAoAAAAABEAkAALEDACC-AQEAAAABwgFAAAAAAc8BAQAAAAHQAQEAAAAB0QEBAAAAAdIBAQAAAAHTAQEAAAAB1AEBAAAAAdUBAQAAAAHWAQEAAAAB1wEBAAAAAdgBQAAAAAHZASAAAAAB2gFAAAAAAdsBQAAAAAECAAAALgAgHwAA_AUAIB4DAADhAwAgCQAA4wMAIAwAAOADACANAADiAwAgDwAA5AMAIL4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHRAQEAAAAB2gFAAAAAAdsBQAAAAAHoAQIAAAAB6QEBAAAAAesBAAAA6wED7AFAAAAAAe0BQAAAAAHvAQAAAO8BAvABEAAAAAHxASAAAAAB8gEBAAAAAfMBAQAAAAH0AQEAAAAB9QECAAAAAfYBAQAAAAH3AUAAAAAB-AFAAAAAAfkBAQAAAAH6AQEAAAAB-wEBAAAAAQIAAAAXACAfAAD-BQAgAwAAACwAIB8AAPwFACAgAACCBgAgEgAAACwAIAkAAKMDACAYAACCBgAgvgEBAJIDACHCAUAAlAMAIc8BAQCTAwAh0AEBAJIDACHRAQEAkgMAIdIBAQCSAwAh0wEBAJMDACHUAQEAkwMAIdUBAQCTAwAh1gEBAJMDACHXAQEAkwMAIdgBQAChAwAh2QEgAKIDACHaAUAAoQMAIdsBQACUAwAhEAkAAKMDACC-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdEBAQCSAwAh0gEBAJIDACHTAQEAkwMAIdQBAQCTAwAh1QEBAJMDACHWAQEAkwMAIdcBAQCTAwAh2AFAAKEDACHZASAAogMAIdoBQAChAwAh2wFAAJQDACEDAAAAFQAgHwAA_gUAICAAAIUGACAgAAAAFQAgAwAAxgMAIAkAAMgDACAMAADFAwAgDQAAxwMAIA8AAMkDACAYAACFBgAgvgEBAJIDACHCAUAAlAMAIc8BAQCTAwAh0AEBAJIDACHRAQEAkgMAIdoBQAChAwAh2wFAAJQDACHoAQIAvwMAIekBAQCTAwAh6wEAAMAD6wEj7AFAAJQDACHtAUAAoQMAIe8BAADBA-8BIvABEADCAwAh8QEgAKIDACHyAQEAkwMAIfMBAQCTAwAh9AEBAJMDACH1AQIAwwMAIfYBAQCTAwAh9wFAAKEDACH4AUAAoQMAIfkBAQCTAwAh-gEBAJMDACH7AQEAkwMAIR4DAADGAwAgCQAAyAMAIAwAAMUDACANAADHAwAgDwAAyQMAIL4BAQCSAwAhwgFAAJQDACHPAQEAkwMAIdABAQCSAwAh0QEBAJIDACHaAUAAoQMAIdsBQACUAwAh6AECAL8DACHpAQEAkwMAIesBAADAA-sBI-wBQACUAwAh7QFAAKEDACHvAQAAwQPvASLwARAAwgMAIfEBIACiAwAh8gEBAJMDACHzAQEAkwMAIfQBAQCTAwAh9QECAMMDACH2AQEAkwMAIfcBQAChAwAh-AFAAKEDACH5AQEAkwMAIfoBAQCTAwAh-wEBAJMDACEeAwAA4QMAIAkAAOMDACALAADfAwAgDQAA4gMAIA8AAOQDACC-AQEAAAABwgFAAAAAAc8BAQAAAAHQAQEAAAAB0QEBAAAAAdoBQAAAAAHbAUAAAAAB6AECAAAAAekBAQAAAAHrAQAAAOsBA-wBQAAAAAHtAUAAAAAB7wEAAADvAQLwARAAAAAB8QEgAAAAAfIBAQAAAAHzAQEAAAAB9AEBAAAAAfUBAgAAAAH2AQEAAAAB9wFAAAAAAfgBQAAAAAH5AQEAAAAB-gEBAAAAAfsBAQAAAAECAAAAFwAgHwAAhgYAIAMAAAAVACAfAACGBgAgIAAAigYAICAAAAAVACADAADGAwAgCQAAyAMAIAsAAMQDACANAADHAwAgDwAAyQMAIBgAAIoGACC-AQEAkgMAIcIBQACUAwAhzwEBAJMDACHQAQEAkgMAIdEBAQCSAwAh2gFAAKEDACHbAUAAlAMAIegBAgC_AwAh6QEBAJMDACHrAQAAwAPrASPsAUAAlAMAIe0BQAChAwAh7wEAAMED7wEi8AEQAMIDACHxASAAogMAIfIBAQCTAwAh8wEBAJMDACH0AQEAkwMAIfUBAgDDAwAh9gEBAJMDACH3AUAAoQMAIfgBQAChAwAh-QEBAJMDACH6AQEAkwMAIfsBAQCTAwAhHgMAAMYDACAJAADIAwAgCwAAxAMAIA0AAMcDACAPAADJAwAgvgEBAJIDACHCAUAAlAMAIc8BAQCTAwAh0AEBAJIDACHRAQEAkgMAIdoBQAChAwAh2wFAAJQDACHoAQIAvwMAIekBAQCTAwAh6wEAAMAD6wEj7AFAAJQDACHtAUAAoQMAIe8BAADBA-8BIvABEADCAwAh8QEgAKIDACHyAQEAkwMAIfMBAQCTAwAh9AEBAJMDACH1AQIAwwMAIfYBAQCTAwAh9wFAAKEDACH4AUAAoQMAIfkBAQCTAwAh-gEBAJMDACH7AQEAkwMAIQcFNQMGABEHBgIONAcQMwYREAUSOAwDAwABBQoDBgAEAgMAAQQLAgEFDAAFAwABBgAQCy8JDisHEBQGBAMAAQYADwkABQ4YBwcDAAEGAA4JAAULHAgMIgsNIwYPJQwCCAAHCwAJAwYACgkABQodCAEKHgABCAAHAwMAAQYADQ4mBwEOJwACCygADCkAAQ4qAAMLMgAOMQAQMAAGBT0ABzkADjwAEDsAEToAEj4AAAAABQYAFiUAFyYAGCcAGSgAGgAAAAAABQYAFiUAFyYAGCcAGSgAGgEDAAEBAwABAwYAHycAICgAIQAAAAMGAB8nACAoACEBAwABAQMAAQMGACYnACcoACgAAAADBgAmJwAnKAAoAQMAAQEDAAEDBgAtJwAuKAAvAAAAAwYALScALigALwIDAAEJAAUCAwABCQAFBQYANCUANSYANicANygAOAAAAAAABQYANCUANSYANicANygAOAQDAAEJAAUNuAEGD7kBDAQDAAEJAAUNvwEGD8ABDAUGAD0lAD4mAD8nAEAoAEEAAAAAAAUGAD0lAD4mAD8nAEAoAEECAwABBNIBAgIDAAEE2AECAwYARicARygASAAAAAMGAEYnAEcoAEgBCQAFAQkABQMGAE0nAE4oAE8AAAADBgBNJwBOKABPAggABwsACQIIAAcLAAkDBgBUJwBVKABWAAAAAwYAVCcAVSgAVgEIAAcBCAAHAwYAWycAXCgAXQAAAAMGAFsnAFwoAF0TAgEUPwEVQgEWQwEXRAEZRgEaSBIbSRMcSwEdTRIeThQhTwEiUAEjURIpVBUqVRsrVgIsVwItWAIuWQIvWgIwXAIxXhIyXxwzYQI0YxI1ZB02ZQI3ZgI4ZxI5ah46ayI7bAw8bQw9bgw-bww_cAxAcgxBdBJCdSNDdwxEeRJFeiRGewxHfAxIfRJJgAElSoEBKUuCAQVMgwEFTYQBBU6FAQVPhgEFUIgBBVGKARJSiwEqU40BBVSPARJVkAErVpEBBVeSAQVYkwESWZYBLFqXATBbmAEGXJkBBl2aAQZemwEGX5wBBmCeAQZhoAESYqEBMWOjAQZkpQESZaYBMmanAQZnqAEGaKkBEmmsATNqrQE5a64BB2yvAQdtsAEHbrEBB2-yAQdwtAEHcbYBEnK3ATpzuwEHdL0BEnW-ATt2wQEHd8IBB3jDARJ5xgE8escBQnvIAQN8yQEDfcoBA37LAQN_zAEDgAHOAQOBAdABEoIB0QFDgwHUAQOEAdYBEoUB1wFEhgHZAQOHAdoBA4gB2wESiQHeAUWKAd8BSYsB4AEJjAHhAQmNAeIBCY4B4wEJjwHkAQmQAeYBCZEB6AESkgHpAUqTAesBCZQB7QESlQHuAUuWAe8BCZcB8AEJmAHxARKZAfQBTJoB9QFQmwH2AQicAfcBCJ0B-AEIngH5AQifAfoBCKAB_AEIoQH-ARKiAf8BUaMBgQIIpAGDAhKlAYQCUqYBhQIIpwGGAgioAYcCEqkBigJTqgGLAlerAYwCC6wBjQILrQGOAguuAY8CC68BkAILsAGSAguxAZQCErIBlQJYswGXAgu0AZkCErUBmgJZtgGbAgu3AZwCC7gBnQISuQGgAlq6AaECXg"
+  strings: JSON.parse('["where","orderBy","cursor","company","auditLogs","_count","user","contracts","customer","equipment","service","photos","contract","services","employee","serviceEquipment","customers","employees","users","Company.findUnique","Company.findUniqueOrThrow","Company.findFirst","Company.findFirstOrThrow","Company.findMany","data","Company.createOne","Company.createMany","Company.createManyAndReturn","Company.updateOne","Company.updateMany","Company.updateManyAndReturn","create","update","Company.upsertOne","Company.deleteOne","Company.deleteMany","having","_avg","_sum","_min","_max","Company.groupBy","Company.aggregate","User.findUnique","User.findUniqueOrThrow","User.findFirst","User.findFirstOrThrow","User.findMany","User.createOne","User.createMany","User.createManyAndReturn","User.updateOne","User.updateMany","User.updateManyAndReturn","User.upsertOne","User.deleteOne","User.deleteMany","User.groupBy","User.aggregate","Employee.findUnique","Employee.findUniqueOrThrow","Employee.findFirst","Employee.findFirstOrThrow","Employee.findMany","Employee.createOne","Employee.createMany","Employee.createManyAndReturn","Employee.updateOne","Employee.updateMany","Employee.updateManyAndReturn","Employee.upsertOne","Employee.deleteOne","Employee.deleteMany","Employee.groupBy","Employee.aggregate","Customer.findUnique","Customer.findUniqueOrThrow","Customer.findFirst","Customer.findFirstOrThrow","Customer.findMany","Customer.createOne","Customer.createMany","Customer.createManyAndReturn","Customer.updateOne","Customer.updateMany","Customer.updateManyAndReturn","Customer.upsertOne","Customer.deleteOne","Customer.deleteMany","Customer.groupBy","Customer.aggregate","Contract.findUnique","Contract.findUniqueOrThrow","Contract.findFirst","Contract.findFirstOrThrow","Contract.findMany","Contract.createOne","Contract.createMany","Contract.createManyAndReturn","Contract.updateOne","Contract.updateMany","Contract.updateManyAndReturn","Contract.upsertOne","Contract.deleteOne","Contract.deleteMany","Contract.groupBy","Contract.aggregate","Service.findUnique","Service.findUniqueOrThrow","Service.findFirst","Service.findFirstOrThrow","Service.findMany","Service.createOne","Service.createMany","Service.createManyAndReturn","Service.updateOne","Service.updateMany","Service.updateManyAndReturn","Service.upsertOne","Service.deleteOne","Service.deleteMany","Service.groupBy","Service.aggregate","AuditLog.findUnique","AuditLog.findUniqueOrThrow","AuditLog.findFirst","AuditLog.findFirstOrThrow","AuditLog.findMany","AuditLog.createOne","AuditLog.createMany","AuditLog.createManyAndReturn","AuditLog.updateOne","AuditLog.updateMany","AuditLog.updateManyAndReturn","AuditLog.upsertOne","AuditLog.deleteOne","AuditLog.deleteMany","AuditLog.groupBy","AuditLog.aggregate","Equipment.findUnique","Equipment.findUniqueOrThrow","Equipment.findFirst","Equipment.findFirstOrThrow","Equipment.findMany","Equipment.createOne","Equipment.createMany","Equipment.createManyAndReturn","Equipment.updateOne","Equipment.updateMany","Equipment.updateManyAndReturn","Equipment.upsertOne","Equipment.deleteOne","Equipment.deleteMany","Equipment.groupBy","Equipment.aggregate","ServiceEquipment.findUnique","ServiceEquipment.findUniqueOrThrow","ServiceEquipment.findFirst","ServiceEquipment.findFirstOrThrow","ServiceEquipment.findMany","ServiceEquipment.createOne","ServiceEquipment.createMany","ServiceEquipment.createManyAndReturn","ServiceEquipment.updateOne","ServiceEquipment.updateMany","ServiceEquipment.updateManyAndReturn","ServiceEquipment.upsertOne","ServiceEquipment.deleteOne","ServiceEquipment.deleteMany","ServiceEquipment.groupBy","ServiceEquipment.aggregate","ServicePhoto.findUnique","ServicePhoto.findUniqueOrThrow","ServicePhoto.findFirst","ServicePhoto.findFirstOrThrow","ServicePhoto.findMany","ServicePhoto.createOne","ServicePhoto.createMany","ServicePhoto.createManyAndReturn","ServicePhoto.updateOne","ServicePhoto.updateMany","ServicePhoto.updateManyAndReturn","ServicePhoto.upsertOne","ServicePhoto.deleteOne","ServicePhoto.deleteMany","ServicePhoto.groupBy","ServicePhoto.aggregate","AND","OR","NOT","id","serviceId","url","caption","createdAt","equals","in","notIn","lt","lte","gt","gte","not","contains","startsWith","endsWith","equipmentId","notes","companyId","customerId","type","brand","model","capacity","serialNumber","location","installedAt","isActive","deletedAt","updatedAt","userId","entityType","entityId","action","oldData","newData","string_contains","string_starts_with","string_ends_with","array_starts_with","array_ends_with","array_contains","serviceNumber","contractId","scheduledAt","completedDate","ServiceStatus","status","amount","isPaid","employeeId","estimatedDurationMinutes","durationMinutes","serviceType","executionNotes","reportUrl","confirmationToken","confirmationTokenExpiresAt","confirmedAt","confirmedIp","confirmedUserAgent","confirmedName","confirmedDocument","confirmedDocumentType","cancelledReason","ContractFrequency","frequency","startDate","endDate","nextServiceDate","ContractStatus","renewCounter","lastRenewedAt","name","email","phone","document","address","fantasyName","documentType","passwordHash","UserRole","role","lastLoginAt","refreshTokenHash","resetPasswordToken","resetPasswordExpiresAt","logoUrl","lastServiceNumber","niche","plan","dataConsentAt","trialEndsAt","every","some","none","companyId_document","companyId_serviceNumber","serviceId_equipmentId","is","isNot","connectOrCreate","upsert","createMany","set","disconnect","delete","connect","updateMany","deleteMany","increment","decrement","multiply","divide"]'),
+  graph: "-wVeoAEZBAAA3wIAIAcAAOACACANAADjAgAgEAAA4QIAIBEAAOICACASAADkAgAguwEAANcCADC8AQAAQAAQvQEAANcCADC-AQEAAAABwgFAANsCACHZASAA3QIAIdsBQADbAgAhhwIBANgCACGIAgEA2QIAIYkCAQDZAgAhigIBANkCACGLAgAA3AIAIIwCAQDZAgAhlQIBANkCACGWAgIA2gIAIZcCAQDYAgAhmAIBANgCACGZAkAA3gIAIZoCQADeAgAhAQAAAAEAIA4DAADnAgAgBgAAgQMAILsBAACAAwAwvAEAAAMAEL0BAACAAwAwvgEBANgCACHCAUAA2wIAIdABAQDYAgAh3AEBANkCACHdAQEA2AIAId4BAQDYAgAh3wEBANgCACHgAQAA3AIAIOEBAADcAgAgBQMAAJgFACAGAAChBQAg3AEAAIIDACDgAQAAggMAIOEBAACCAwAgDgMAAOcCACAGAACBAwAguwEAAIADADC8AQAAAwAQvQEAAIADADC-AQEAAAABwgFAANsCACHQAQEA2AIAIdwBAQDZAgAh3QEBANgCACHeAQEA2AIAId8BAQDYAgAh4AEAANwCACDhAQAA3AIAIAMAAAADACABAAAEADACAAAFACATAwAA5wIAIAQAAN8CACC7AQAA5QIAMLwBAAAHABC9AQAA5QIAML4BAQDYAgAhwgFAANsCACHQAQEA2AIAIdkBIADdAgAh2gFAAN4CACHbAUAA2wIAIYcCAQDYAgAhiAIBANgCACGOAgEA2AIAIZACAADmApACIpECQADeAgAhkgIBANkCACGTAgEA2QIAIZQCQADeAgAhAQAAAAcAIAMAAAADACABAAAEADACAAAFACABAAAAAwAgFQMAAOcCACAIAAD0AgAgDQAA4wIAILsBAAD8AgAwvAEAAAsAEL0BAAD8AgAwvgEBANgCACHCAUAA2wIAIc8BAQDZAgAh0AEBANgCACHRAQEA2AIAIdoBQADeAgAh2wFAANsCACHtAQAA_wKFAiLuARAA_gIAIYACAAD9AoACIoECQADbAgAhggJAANsCACGDAkAA3gIAIYUCAgDaAgAhhgJAAN4CACEHAwAAmAUAIAgAAJ0FACANAACWBQAgzwEAAIIDACDaAQAAggMAIIMCAACCAwAghgIAAIIDACAVAwAA5wIAIAgAAPQCACANAADjAgAguwEAAPwCADC8AQAACwAQvQEAAPwCADC-AQEAAAABwgFAANsCACHPAQEA2QIAIdABAQDYAgAh0QEBANgCACHaAUAA3gIAIdsBQADbAgAh7QEAAP8ChQIi7gEQAP4CACGAAgAA_QKAAiKBAkAA2wIAIYICQADbAgAhgwJAAN4CACGFAgIA2gIAIYYCQADeAgAhAwAAAAsAIAEAAAwAMAIAAA0AIAMAAAALACABAAAMADACAAANACAUCAAA9AIAIA8AAPECACC7AQAA-wIAMLwBAAAQABC9AQAA-wIAML4BAQDYAgAhwgFAANsCACHPAQEA2QIAIdABAQDYAgAh0QEBANgCACHSAQEA2AIAIdMBAQDZAgAh1AEBANkCACHVAQEA2QIAIdYBAQDZAgAh1wEBANkCACHYAUAA3gIAIdkBIADdAgAh2gFAAN4CACHbAUAA2wIAIQoIAACdBQAgDwAAmgUAIM8BAACCAwAg0wEAAIIDACDUAQAAggMAINUBAACCAwAg1gEAAIIDACDXAQAAggMAINgBAACCAwAg2gEAAIIDACAUCAAA9AIAIA8AAPECACC7AQAA-wIAMLwBAAAQABC9AQAA-wIAML4BAQAAAAHCAUAA2wIAIc8BAQDZAgAh0AEBANgCACHRAQEA2AIAIdIBAQDYAgAh0wEBANkCACHUAQEA2QIAIdUBAQDZAgAh1gEBANkCACHXAQEA2QIAIdgBQADeAgAh2QEgAN0CACHaAUAA3gIAIdsBQADbAgAhAwAAABAAIAEAABEAMAIAABIAIAkJAAD6AgAgCgAA9wIAILsBAAD5AgAwvAEAABQAEL0BAAD5AgAwvgEBANgCACG_AQEA2AIAIc4BAQDYAgAhzwEBANkCACEDCQAAoAUAIAoAAJ8FACDPAQAAggMAIAoJAAD6AgAgCgAA9wIAILsBAAD5AgAwvAEAABQAEL0BAAD5AgAwvgEBAAAAAb8BAQDYAgAhzgEBANgCACHPAQEA2QIAIaACAAD4AgAgAwAAABQAIAEAABUAMAIAABYAIAMAAAAUACABAAAVADACAAAWACAJCgAA9wIAILsBAAD2AgAwvAEAABkAEL0BAAD2AgAwvgEBANgCACG_AQEA2AIAIcABAQDYAgAhwQEBANkCACHCAUAA2wIAIQIKAACfBQAgwQEAAIIDACAJCgAA9wIAILsBAAD2AgAwvAEAABkAEL0BAAD2AgAwvgEBAAAAAb8BAQDYAgAhwAEBANgCACHBAQEA2QIAIcIBQADbAgAhAwAAABkAIAEAABoAMAIAABsAIAEAAAALACAOAwAA5wIAIA0AAOMCACC7AQAA6AIAMLwBAAAeABC9AQAA6AIAML4BAQDYAgAhwgFAANsCACHQAQEA2AIAIdkBIADdAgAh2gFAAN4CACHbAUAA2wIAIYcCAQDYAgAhiAIBANkCACGJAgEA2QIAIQEAAAAeACAmAwAA5wIAIAgAAPQCACAJAADxAgAgCwAA8gIAIAwAAPMCACAOAAD1AgAguwEAAO0CADC8AQAAIAAQvQEAAO0CADC-AQEA2AIAIcIBQADbAgAhzwEBANkCACHQAQEA2AIAIdEBAQDYAgAh2gFAAN4CACHbAUAA2wIAIegBAgDaAgAh6QEBANkCACHqAUAA2wIAIesBQADeAgAh7QEAAO4C7QEi7gEQAO8CACHvASAA3QIAIfABAQDZAgAh8QECAPACACHyAQIA8AIAIfMBAQDZAgAh9AEBANkCACH1AQEA2QIAIfYBAQDZAgAh9wFAAN4CACH4AUAA3gIAIfkBAQDZAgAh-gEBANkCACH7AQEA2QIAIfwBAQDZAgAh_QEBANkCACH-AQEA2QIAIRoDAACYBQAgCAAAnQUAIAkAAJoFACALAACbBQAgDAAAnAUAIA4AAJ4FACDPAQAAggMAINoBAACCAwAg6QEAAIIDACDrAQAAggMAIO4BAACCAwAg8AEAAIIDACDxAQAAggMAIPIBAACCAwAg8wEAAIIDACD0AQAAggMAIPUBAACCAwAg9gEAAIIDACD3AQAAggMAIPgBAACCAwAg-QEAAIIDACD6AQAAggMAIPsBAACCAwAg_AEAAIIDACD9AQAAggMAIP4BAACCAwAgJwMAAOcCACAIAAD0AgAgCQAA8QIAIAsAAPICACAMAADzAgAgDgAA9QIAILsBAADtAgAwvAEAACAAEL0BAADtAgAwvgEBAAAAAcIBQADbAgAhzwEBANkCACHQAQEA2AIAIdEBAQDYAgAh2gFAAN4CACHbAUAA2wIAIegBAgDaAgAh6QEBANkCACHqAUAA2wIAIesBQADeAgAh7QEAAO4C7QEi7gEQAO8CACHvASAA3QIAIfABAQDZAgAh8QECAPACACHyAQIA8AIAIfMBAQDZAgAh9AEBANkCACH1AQEA2QIAIfYBAQAAAAH3AUAA3gIAIfgBQADeAgAh-QEBANkCACH6AQEA2QIAIfsBAQDZAgAh_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_ABC9AQAA0QIAML4BAQCjAgAhwgFAAKUCACHQAQEAowIAIdkBIACxAgAh2gFAALACACHbAUAApQIAIYcCAQCjAgAhiAIBAKQCACGJAgEApAIAIQMAAAAeACABAAB-ADAkAAB_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-QEBAAAAAfoBAQAAAAH7AQEAAAAB_AEBAAAAAf0BAQAAAAH-AQEAAAABARgAALMBACAdvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdEBAQAAAAHaAUAAAAAB2wFAAAAAAegBAgAAAAHpAQEAAAAB6gFAAAAAAesBQAAAAAHtAQAAAO0BAu4BEAAAAAHvASAAAAAB8AEBAAAAAfEBAgAAAAHyAQIAAAAB8wEBAAAAAfQBAQAAAAH1AQEAAAAB9gEBAAAAAfcBQAAAAAH4AUAAAAAB-QEBAAAAAfoBAQAAAAH7AQEAAAAB_AEBAAAAAf0BAQAAAAH-AQEAAAABARgAALUBADABGAAAtQEAMAEAAAALACABAAAAHgAgIwMAALkDACAIAAC7AwAgCQAAtwMAIAsAALgDACAMAAC6AwAgDgAAvAMAIL4BAQCGAwAhwgFAAIgDACHPAQEAhwMAIdABAQCGAwAh0QEBAIYDACHaAUAAlQMAIdsBQACIAwAh6AECALMDACHpAQEAhwMAIeoBQACIAwAh6wFAAJUDACHtAQAAtAPtASLuARAAtQMAIe8BIACWAwAh8AEBAIcDACHxAQIAtgMAIfIBAgC2AwAh8wEBAIcDACH0AQEAhwMAIfUBAQCHAwAh9gEBAIcDACH3AUAAlQMAIfgBQACVAwAh-QEBAIcDACH6AQEAhwMAIfsBAQCHAwAh_AEBAIcDACH9AQEAhwMAIf4BAQCHAwAhAgAAACIAIBgAALoBACAdvgEBAIYDACHCAUAAiAMAIc8BAQCHAwAh0AEBAIYDACHRAQEAhgMAIdoBQACVAwAh2wFAAIgDACHoAQIAswMAIekBAQCHAwAh6gFAAIgDACHrAUAAlQMAIe0BAAC0A-0BIu4BEAC1AwAh7wEgAJYDACHwAQEAhwMAIfEBAgC2AwAh8gECALYDACHzAQEAhwMAIfQBAQCHAwAh9QEBAIcDACH2AQEAhwMAIfcBQACVAwAh-AFAAJUDACH5AQEAhwMAIfoBAQCHAwAh-wEBAIcDACH8AQEAhwMAIf0BAQCHAwAh_gEBAIcDACECAAAAIAAgGAAAvAEAIAIAAAAgACAYAAC8AQAgAQAAAAsAIAEAAAAeACADAAAAIgAgHwAAswEAICAAALoBACABAAAAIgAgAQAAACAAIBkFAACuAwAgJQAArwMAICYAALIDACAnAACxAwAgKAAAsAMAIM8BAACCAwAg2gEAAIIDACDpAQAAggMAIOsBAACCAwAg7gEAAIIDACDwAQAAggMAIPEBAACCAwAg8gEAAIIDACDzAQAAggMAIPQBAACCAwAg9QEAAIIDACD2AQAAggMAIPcBAACCAwAg-AEAAIIDACD5AQAAggMAIPoBAACCAwAg-wEAAIIDACD8AQAAggMAIP0BAACCAwAg_gEAAIIDACAguwEAALkCADC8AQAAxQEAEL0BAAC5AgAwvgEBAKMCACHCAUAApQIAIc8BAQCkAgAh0AEBAKMCACHRAQEAowIAIdoBQACwAgAh2wFAAKUCACHoAQIAugIAIekBAQCkAgAh6gFAAKUCACHrAUAAsAIAIe0BAAC7Au0BIu4BEAC8AgAh7wEgALECACHwAQEApAIAIfEBAgC9AgAh8gECAL0CACHzAQEApAIAIfQBAQCkAgAh9QEBAKQCACH2AQEApAIAIfcBQACwAgAh-AFAALACACH5AQEApAIAIfoBAQCkAgAh-wEBAKQCACH8AQEApAIAIf0BAQCkAgAh_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_AQEAAAABzgEBAAAAAc8BAQAAAAEBGAAA-wEAIAS-AQEAAAABvwEBAAAAAc4BAQAAAAHPAQEAAAABARgAAP0BADABGAAA_QEAMAYJAACOAwAgCgAAjwMAIL4BAQCGAwAhvwEBAIYDACHOAQEAhgMAIc8BAQCHAwAhAgAAABYAIBgAAIACACAEvgEBAIYDACG_AQEAhgMAIc4BAQCGAwAhzwEBAIcDACECAAAAFAAgGAAAggIAIAIAAAAUACAYAACCAgAgAwAAABYAIB8AAPsBACAgAACAAgAgAQAAABYAIAEAAAAUACAEBQAAiwMAICcAAI0DACAoAACMAwAgzwEAAIIDACAHuwEAAK4CADC8AQAAiQIAEL0BAACuAgAwvgEBAKMCACG_AQEAowIAIc4BAQCjAgAhzwEBAKQCACEDAAAAFAAgAQAAiAIAMCQAAIkCACADAAAAFAAgAQAAFQAwAgAAFgAgAQAAABsAIAEAAAAbACADAAAAGQAgAQAAGgAwAgAAGwAgAwAAABkAIAEAABoAMAIAABsAIAMAAAAZACABAAAaADACAAAbACAGCgAAigMAIL4BAQAAAAG_AQEAAAABwAEBAAAAAcEBAQAAAAHCAUAAAAABARgAAJECACAFvgEBAAAAAb8BAQAAAAHAAQEAAAABwQEBAAAAAcIBQAAAAAEBGAAAkwIAMAEYAACTAgAwBgoAAIkDACC-AQEAhgMAIb8BAQCGAwAhwAEBAIYDACHBAQEAhwMAIcIBQACIAwAhAgAAABsAIBgAAJYCACAFvgEBAIYDACG_AQEAhgMAIcABAQCGAwAhwQEBAIcDACHCAUAAiAMAIQIAAAAZACAYAACYAgAgAgAAABkAIBgAAJgCACADAAAAGwAgHwAAkQIAICAAAJYCACABAAAAGwAgAQAAABkAIAQFAACDAwAgJwAAhQMAICgAAIQDACDBAQAAggMAIAi7AQAAogIAMLwBAACfAgAQvQEAAKICADC-AQEAowIAIb8BAQCjAgAhwAEBAKMCACHBAQEApAIAIcIBQAClAgAhAwAAABkAIAEAAJ4CADAkAACfAgAgAwAAABkAIAEAABoAMAIAABsAIAi7AQAAogIAMLwBAACfAgAQvQEAAKICADC-AQEAowIAIb8BAQCjAgAhwAEBAKMCACHBAQEApAIAIcIBQAClAgAhDgUAAKcCACAnAACtAgAgKAAArQIAIMMBAQAAAAHEAQEAAAAExQEBAAAABMYBAQAAAAHHAQEAAAAByAEBAAAAAckBAQAAAAHKAQEArAIAIcsBAQAAAAHMAQEAAAABzQEBAAAAAQ4FAACqAgAgJwAAqwIAICgAAKsCACDDAQEAAAABxAEBAAAABcUBAQAAAAXGAQEAAAABxwEBAAAAAcgBAQAAAAHJAQEAAAABygEBAKkCACHLAQEAAAABzAEBAAAAAc0BAQAAAAELBQAApwIAICcAAKgCACAoAACoAgAgwwFAAAAAAcQBQAAAAATFAUAAAAAExgFAAAAAAccBQAAAAAHIAUAAAAAByQFAAAAAAcoBQACmAgAhCwUAAKcCACAnAACoAgAgKAAAqAIAIMMBQAAAAAHEAUAAAAAExQFAAAAABMYBQAAAAAHHAUAAAAAByAFAAAAAAckBQAAAAAHKAUAApgIAIQjDAQIAAAABxAECAAAABMUBAgAAAATGAQIAAAABxwECAAAAAcgBAgAAAAHJAQIAAAABygECAKcCACEIwwFAAAAAAcQBQAAAAATFAUAAAAAExgFAAAAAAccBQAAAAAHIAUAAAAAByQFAAAAAAcoBQACoAgAhDgUAAKoCACAnAACrAgAgKAAAqwIAIMMBAQAAAAHEAQEAAAAFxQEBAAAABcYBAQAAAAHHAQEAAAAByAEBAAAAAckBAQAAAAHKAQEAqQIAIcsBAQAAAAHMAQEAAAABzQEBAAAAAQjDAQIAAAABxAECAAAABcUBAgAAAAXGAQIAAAABxwECAAAAAcgBAgAAAAHJAQIAAAABygECAKoCACELwwEBAAAAAcQBAQAAAAXFAQEAAAAFxgEBAAAAAccBAQAAAAHIAQEAAAAByQEBAAAAAcoBAQCrAgAhywEBAAAAAcwBAQAAAAHNAQEAAAABDgUAAKcCACAnAACtAgAgKAAArQIAIMMBAQAAAAHEAQEAAAAExQEBAAAABMYBAQAAAAHHAQEAAAAByAEBAAAAAckBAQAAAAHKAQEArAIAIcsBAQAAAAHMAQEAAAABzQEBAAAAAQvDAQEAAAABxAEBAAAABMUBAQAAAATGAQEAAAABxwEBAAAAAcgBAQAAAAHJAQEAAAABygEBAK0CACHLAQEAAAABzAEBAAAAAc0BAQAAAAEHuwEAAK4CADC8AQAAiQIAEL0BAACuAgAwvgEBAKMCACG_AQEAowIAIc4BAQCjAgAhzwEBAKQCACESuwEAAK8CADC8AQAA8wEAEL0BAACvAgAwvgEBAKMCACHCAUAApQIAIc8BAQCkAgAh0AEBAKMCACHRAQEAowIAIdIBAQCjAgAh0wEBAKQCACHUAQEApAIAIdUBAQCkAgAh1gEBAKQCACHXAQEApAIAIdgBQACwAgAh2QEgALECACHaAUAAsAIAIdsBQAClAgAhCwUAAKoCACAnAAC1AgAgKAAAtQIAIMMBQAAAAAHEAUAAAAAFxQFAAAAABcYBQAAAAAHHAUAAAAAByAFAAAAAAckBQAAAAAHKAUAAtAIAIQUFAACnAgAgJwAAswIAICgAALMCACDDASAAAAABygEgALICACEFBQAApwIAICcAALMCACAoAACzAgAgwwEgAAAAAcoBIACyAgAhAsMBIAAAAAHKASAAswIAIQsFAACqAgAgJwAAtQIAICgAALUCACDDAUAAAAABxAFAAAAABcUBQAAAAAXGAUAAAAABxwFAAAAAAcgBQAAAAAHJAUAAAAABygFAALQCACEIwwFAAAAAAcQBQAAAAAXFAUAAAAAFxgFAAAAAAccBQAAAAAHIAUAAAAAByQFAAAAAAcoBQAC1AgAhDLsBAAC2AgAwvAEAAN0BABC9AQAAtgIAML4BAQCjAgAhwgFAAKUCACHQAQEAowIAIdwBAQCkAgAh3QEBAKMCACHeAQEAowIAId8BAQCjAgAh4AEAALcCACDhAQAAtwIAIA8FAACqAgAgJwAAuAIAICgAALgCACDDAYAAAAABxgGAAAAAAccBgAAAAAHIAYAAAAAByQGAAAAAAcoBgAAAAAHiAQEAAAAB4wEBAAAAAeQBAQAAAAHlAYAAAAAB5gGAAAAAAecBgAAAAAEMwwGAAAAAAcYBgAAAAAHHAYAAAAAByAGAAAAAAckBgAAAAAHKAYAAAAAB4gEBAAAAAeMBAQAAAAHkAQEAAAAB5QGAAAAAAeYBgAAAAAHnAYAAAAABILsBAAC5AgAwvAEAAMUBABC9AQAAuQIAML4BAQCjAgAhwgFAAKUCACHPAQEApAIAIdABAQCjAgAh0QEBAKMCACHaAUAAsAIAIdsBQAClAgAh6AECALoCACHpAQEApAIAIeoBQAClAgAh6wFAALACACHtAQAAuwLtASLuARAAvAIAIe8BIACxAgAh8AEBAKQCACHxAQIAvQIAIfIBAgC9AgAh8wEBAKQCACH0AQEApAIAIfUBAQCkAgAh9gEBAKQCACH3AUAAsAIAIfgBQACwAgAh-QEBAKQCACH6AQEApAIAIfsBAQCkAgAh_AEBAKQCACH9AQEApAIAIf4BAQCkAgAhDQUAAKcCACAlAADFAgAgJgAApwIAICcAAKcCACAoAACnAgAgwwECAAAAAcQBAgAAAATFAQIAAAAExgECAAAAAccBAgAAAAHIAQIAAAAByQECAAAAAcoBAgDEAgAhBwUAAKcCACAnAADDAgAgKAAAwwIAIMMBAAAA7QECxAEAAADtAQjFAQAAAO0BCMoBAADCAu0BIg0FAACqAgAgJQAAwQIAICYAAMECACAnAADBAgAgKAAAwQIAIMMBEAAAAAHEARAAAAAFxQEQAAAABcYBEAAAAAHHARAAAAAByAEQAAAAAckBEAAAAAHKARAAwAIAIQ0FAACqAgAgJQAAvwIAICYAAKoCACAnAACqAgAgKAAAqgIAIMMBAgAAAAHEAQIAAAAFxQECAAAABcYBAgAAAAHHAQIAAAAByAECAAAAAckBAgAAAAHKAQIAvgIAIQ0FAACqAgAgJQAAvwIAICYAAKoCACAnAACqAgAgKAAAqgIAIMMBAgAAAAHEAQIAAAAFxQECAAAABcYBAgAAAAHHAQIAAAAByAECAAAAAckBAgAAAAHKAQIAvgIAIQjDAQgAAAABxAEIAAAABcUBCAAAAAXGAQgAAAABxwEIAAAAAcgBCAAAAAHJAQgAAAABygEIAL8CACENBQAAqgIAICUAAMECACAmAADBAgAgJwAAwQIAICgAAMECACDDARAAAAABxAEQAAAABcUBEAAAAAXGARAAAAABxwEQAAAAAcgBEAAAAAHJARAAAAABygEQAMACACEIwwEQAAAAAcQBEAAAAAXFARAAAAAFxgEQAAAAAccBEAAAAAHIARAAAAAByQEQAAAAAcoBEADBAgAhBwUAAKcCACAnAADDAgAgKAAAwwIAIMMBAAAA7QECxAEAAADtAQjFAQAAAO0BCMoBAADCAu0BIgTDAQAAAO0BAsQBAAAA7QEIxQEAAADtAQjKAQAAwwLtASINBQAApwIAICUAAMUCACAmAACnAgAgJwAApwIAICgAAKcCACDDAQIAAAABxAECAAAABMUBAgAAAATGAQIAAAABxwECAAAAAcgBAgAAAAHJAQIAAAABygECAMQCACEIwwEIAAAAAcQBCAAAAATFAQgAAAAExgEIAAAAAccBCAAAAAHIAQgAAAAByQEIAAAAAcoBCADFAgAhErsBAADGAgAwvAEAAKsBABC9AQAAxgIAML4BAQCjAgAhwgFAAKUCACHPAQEApAIAIdABAQCjAgAh0QEBAKMCACHaAUAAsAIAIdsBQAClAgAh7QEAAMkChQIi7gEQAMgCACGAAgAAxwKAAiKBAkAApQIAIYICQAClAgAhgwJAALACACGFAgIAugIAIYYCQACwAgAhBwUAAKcCACAnAADPAgAgKAAAzwIAIMMBAAAAgAICxAEAAACAAgjFAQAAAIACCMoBAADOAoACIg0FAACnAgAgJQAAzQIAICYAAM0CACAnAADNAgAgKAAAzQIAIMMBEAAAAAHEARAAAAAExQEQAAAABMYBEAAAAAHHARAAAAAByAEQAAAAAckBEAAAAAHKARAAzAIAIQcFAACnAgAgJwAAywIAICgAAMsCACDDAQAAAIUCAsQBAAAAhQIIxQEAAACFAgjKAQAAygKFAiIHBQAApwIAICcAAMsCACAoAADLAgAgwwEAAACFAgLEAQAAAIUCCMUBAAAAhQIIygEAAMoChQIiBMMBAAAAhQICxAEAAACFAgjFAQAAAIUCCMoBAADLAoUCIg0FAACnAgAgJQAAzQIAICYAAM0CACAnAADNAgAgKAAAzQIAIMMBEAAAAAHEARAAAAAExQEQAAAABMYBEAAAAAHHARAAAAAByAEQAAAAAckBEAAAAAHKARAAzAIAIQjDARAAAAABxAEQAAAABMUBEAAAAATGARAAAAABxwEQAAAAAcgBEAAAAAHJARAAAAABygEQAM0CACEHBQAApwIAICcAAM8CACAoAADPAgAgwwEAAACAAgLEAQAAAIACCMUBAAAAgAIIygEAAM4CgAIiBMMBAAAAgAICxAEAAACAAgjFAQAAAIACCMoBAADPAoACIhG7AQAA0AIAMLwBAACVAQAQvQEAANACADC-AQEAowIAIcIBQAClAgAhzwEBAKQCACHQAQEAowIAIdkBIACxAgAh2gFAALACACHbAUAApQIAIYcCAQCjAgAhiAIBAKQCACGJAgEApAIAIYoCAQCkAgAhiwIAALcCACCMAgEApAIAIY0CAQCjAgAhDLsBAADRAgAwvAEAAH8AEL0BAADRAgAwvgEBAKMCACHCAUAApQIAIdABAQCjAgAh2QEgALECACHaAUAAsAIAIdsBQAClAgAhhwIBAKMCACGIAgEApAIAIYkCAQCkAgAhEbsBAADSAgAwvAEAAGkAEL0BAADSAgAwvgEBAKMCACHCAUAApQIAIdABAQCjAgAh2QEgALECACHaAUAAsAIAIdsBQAClAgAhhwIBAKMCACGIAgEAowIAIY4CAQCjAgAhkAIAANMCkAIikQJAALACACGSAgEApAIAIZMCAQCkAgAhlAJAALACACEHBQAApwIAICcAANUCACAoAADVAgAgwwEAAACQAgLEAQAAAJACCMUBAAAAkAIIygEAANQCkAIiBwUAAKcCACAnAADVAgAgKAAA1QIAIMMBAAAAkAICxAEAAACQAgjFAQAAAJACCMoBAADUApACIgTDAQAAAJACAsQBAAAAkAIIxQEAAACQAgjKAQAA1QKQAiITuwEAANYCADC8AQAAUwAQvQEAANYCADC-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-AFAAN4CACH5AQEA2QIAIfoBAQDZAgAh-wEBANkCACH8AQEA2QIAIf0BAQDZAgAh_gEBANkCACEEwwEAAADtAQLEAQAAAO0BCMUBAAAA7QEIygEAAMMC7QEiCMMBEAAAAAHEARAAAAAFxQEQAAAABcYBEAAAAAHHARAAAAAByAEQAAAAAckBEAAAAAHKARAAwQIAIQjDAQIAAAABxAECAAAABcUBAgAAAAXGAQIAAAABxwECAAAAAcgBAgAAAAHJAQIAAAABygECAKoCACEDmwIAABQAIJwCAAAUACCdAgAAFAAgA5sCAAAZACCcAgAAGQAgnQIAABkAIBcDAADnAgAgCAAA9AIAIA0AAOMCACC7AQAA_AIAMLwBAAALABC9AQAA_AIAML4BAQDYAgAhwgFAANsCACHPAQEA2QIAIdABAQDYAgAh0QEBANgCACHaAUAA3gIAIdsBQADbAgAh7QEAAP8ChQIi7gEQAP4CACGAAgAA_QKAAiKBAkAA2wIAIYICQADbAgAhgwJAAN4CACGFAgIA2gIAIYYCQADeAgAhoQIAAAsAIKICAAALACAXAwAA5wIAIAcAAOACACAJAADrAgAgDQAA4wIAILsBAADqAgAwvAEAAC4AEL0BAADqAgAwvgEBANgCACHCAUAA2wIAIc8BAQDZAgAh0AEBANgCACHZASAA3QIAIdoBQADeAgAh2wFAANsCACGHAgEA2AIAIYgCAQDZAgAhiQIBANkCACGKAgEA2QIAIYsCAADcAgAgjAIBANkCACGNAgEA2AIAIaECAAAuACCiAgAALgAgEAMAAOcCACANAADjAgAguwEAAOgCADC8AQAAHgAQvQEAAOgCADC-AQEA2AIAIcIBQADbAgAh0AEBANgCACHZASAA3QIAIdoBQADeAgAh2wFAANsCACGHAgEA2AIAIYgCAQDZAgAhiQIBANkCACGhAgAAHgAgogIAAB4AIAkKAAD3AgAguwEAAPYCADC8AQAAGQAQvQEAAPYCADC-AQEA2AIAIb8BAQDYAgAhwAEBANgCACHBAQEA2QIAIcIBQADbAgAhKAMAAOcCACAIAAD0AgAgCQAA8QIAIAsAAPICACAMAADzAgAgDgAA9QIAILsBAADtAgAwvAEAACAAEL0BAADtAgAwvgEBANgCACHCAUAA2wIAIc8BAQDZAgAh0AEBANgCACHRAQEA2AIAIdoBQADeAgAh2wFAANsCACHoAQIA2gIAIekBAQDZAgAh6gFAANsCACHrAUAA3gIAIe0BAADuAu0BIu4BEADvAgAh7wEgAN0CACHwAQEA2QIAIfEBAgDwAgAh8gECAPACACHzAQEA2QIAIfQBAQDZAgAh9QEBANkCACH2AQEA2QIAIfcBQADeAgAh-AFAAN4CACH5AQEA2QIAIfoBAQDZAgAh-wEBANkCACH8AQEA2QIAIf0BAQDZAgAh_gEBANkCACGhAgAAIAAgogIAACAAIAK_AQEAAAABzgEBAAAAAQkJAAD6AgAgCgAA9wIAILsBAAD5AgAwvAEAABQAEL0BAAD5AgAwvgEBANgCACG_AQEA2AIAIc4BAQDYAgAhzwEBANkCACEWCAAA9AIAIA8AAPECACC7AQAA-wIAMLwBAAAQABC9AQAA-wIAML4BAQDYAgAhwgFAANsCACHPAQEA2QIAIdABAQDYAgAh0QEBANgCACHSAQEA2AIAIdMBAQDZAgAh1AEBANkCACHVAQEA2QIAIdYBAQDZAgAh1wEBANkCACHYAUAA3gIAIdkBIADdAgAh2gFAAN4CACHbAUAA2wIAIaECAAAQACCiAgAAEAAgFAgAAPQCACAPAADxAgAguwEAAPsCADC8AQAAEAAQvQEAAPsCADC-AQEA2AIAIcIBQADbAgAhzwEBANkCACHQAQEA2AIAIdEBAQDYAgAh0gEBANgCACHTAQEA2QIAIdQBAQDZAgAh1QEBANkCACHWAQEA2QIAIdcBAQDZAgAh2AFAAN4CACHZASAA3QIAIdoBQADeAgAh2wFAANsCACEVAwAA5wIAIAgAAPQCACANAADjAgAguwEAAPwCADC8AQAACwAQvQEAAPwCADC-AQEA2AIAIcIBQADbAgAhzwEBANkCACHQAQEA2AIAIdEBAQDYAgAh2gFAAN4CACHbAUAA2wIAIe0BAAD_AoUCIu4BEAD-AgAhgAIAAP0CgAIigQJAANsCACGCAkAA2wIAIYMCQADeAgAhhQICANoCACGGAkAA3gIAIQTDAQAAAIACAsQBAAAAgAIIxQEAAACAAgjKAQAAzwKAAiIIwwEQAAAAAcQBEAAAAATFARAAAAAExgEQAAAAAccBEAAAAAHIARAAAAAByQEQAAAAAcoBEADNAgAhBMMBAAAAhQICxAEAAACFAgjFAQAAAIUCCMoBAADLAoUCIg4DAADnAgAgBgAAgQMAILsBAACAAwAwvAEAAAMAEL0BAACAAwAwvgEBANgCACHCAUAA2wIAIdABAQDYAgAh3AEBANkCACHdAQEA2AIAId4BAQDYAgAh3wEBANgCACHgAQAA3AIAIOEBAADcAgAgFQMAAOcCACAEAADfAgAguwEAAOUCADC8AQAABwAQvQEAAOUCADC-AQEA2AIAIcIBQADbAgAh0AEBANgCACHZASAA3QIAIdoBQADeAgAh2wFAANsCACGHAgEA2AIAIYgCAQDYAgAhjgIBANgCACGQAgAA5gKQAiKRAkAA3gIAIZICAQDZAgAhkwIBANkCACGUAkAA3gIAIaECAAAHACCiAgAABwAgAAAAAAGmAgEAAAABAaYCAQAAAAEBpgJAAAAAAQUfAAD3BQAgIAAA-gUAIKMCAAD4BQAgpAIAAPkFACCpAgAAIgAgAx8AAPcFACCjAgAA-AUAIKkCAAAiACAAAAAFHwAA7wUAICAAAPUFACCjAgAA8AUAIKQCAAD0BQAgqQIAABIAIAUfAADtBQAgIAAA8gUAIKMCAADuBQAgpAIAAPEFACCpAgAAIgAgAx8AAO8FACCjAgAA8AUAIKkCAAASACADHwAA7QUAIKMCAADuBQAgqQIAACIAIAAAAAGmAkAAAAABAaYCIAAAAAEFHwAA5wUAICAAAOsFACCjAgAA6AUAIKQCAADqBQAgqQIAADAAIAsfAACZAwAwIAAAngMAMKMCAACaAwAwpAIAAJsDADClAgAAnAMAIKYCAACdAwAwpwIAAJ0DADCoAgAAnQMAMKkCAACdAwAwqgIAAJ8DADCrAgAAoAMAMAQKAACRAwAgvgEBAAAAAb8BAQAAAAHPAQEAAAABAgAAABYAIB8AAKQDACADAAAAFgAgHwAApAMAICAAAKMDACABGAAA6QUAMAoJAAD6AgAgCgAA9wIAILsBAAD5AgAwvAEAABQAEL0BAAD5AgAwvgEBAAAAAb8BAQDYAgAhzgEBANgCACHPAQEA2QIAIaACAAD4AgAgAgAAABYAIBgAAKMDACACAAAAoQMAIBgAAKIDACAHuwEAAKADADC8AQAAoQMAEL0BAACgAwAwvgEBANgCACG_AQEA2AIAIc4BAQDYAgAhzwEBANkCACEHuwEAAKADADC8AQAAoQMAEL0BAACgAwAwvgEBANgCACG_AQEA2AIAIc4BAQDYAgAhzwEBANkCACEDvgEBAIYDACG_AQEAhgMAIc8BAQCHAwAhBAoAAI8DACC-AQEAhgMAIb8BAQCGAwAhzwEBAIcDACEECgAAkQMAIL4BAQAAAAG_AQEAAAABzwEBAAAAAQMfAADnBQAgowIAAOgFACCpAgAAMAAgBB8AAJkDADCjAgAAmgMAMKUCAACcAwAgqQIAAJ0DADAAAAAFHwAA3wUAICAAAOUFACCjAgAA4AUAIKQCAADkBQAgqQIAAAEAIAcfAADdBQAgIAAA4gUAIKMCAADeBQAgpAIAAOEFACCnAgAABwAgqAIAAAcAIKkCAAA3ACADHwAA3wUAIKMCAADgBQAgqQIAAAEAIAMfAADdBQAgowIAAN4FACCpAgAANwAgAAAAAAAFpgICAAAAAawCAgAAAAGtAgIAAAABrgICAAAAAa8CAgAAAAEBpgIAAADtAQIFpgIQAAAAAawCEAAAAAGtAhAAAAABrgIQAAAAAa8CEAAAAAEFpgICAAAAAawCAgAAAAGtAgIAAAABrgICAAAAAa8CAgAAAAELHwAAyQMAMCAAAM0DADCjAgAAygMAMKQCAADLAwAwpQIAAMwDACCmAgAAnQMAMKcCAACdAwAwqAIAAJ0DADCpAgAAnQMAMKoCAADOAwAwqwIAAKADADALHwAAvQMAMCAAAMIDADCjAgAAvgMAMKQCAAC_AwAwpQIAAMADACCmAgAAwQMAMKcCAADBAwAwqAIAAMEDADCpAgAAwQMAMKoCAADDAwAwqwIAAMQDADAFHwAAzQUAICAAANsFACCjAgAAzgUAIKQCAADaBQAgqQIAAAEAIAcfAADLBQAgIAAA2AUAIKMCAADMBQAgpAIAANcFACCnAgAACwAgqAIAAAsAIKkCAAANACAFHwAAyQUAICAAANUFACCjAgAAygUAIKQCAADUBQAgqQIAADAAIAcfAADHBQAgIAAA0gUAIKMCAADIBQAgpAIAANEFACCnAgAAHgAgqAIAAB4AIKkCAAAzACAEvgEBAAAAAcABAQAAAAHBAQEAAAABwgFAAAAAAQIAAAAbACAfAADIAwAgAwAAABsAIB8AAMgDACAgAADHAwAgARgAANAFADAJCgAA9wIAILsBAAD2AgAwvAEAABkAEL0BAAD2AgAwvgEBAAAAAb8BAQDYAgAhwAEBANgCACHBAQEA2QIAIcIBQADbAgAhAgAAABsAIBgAAMcDACACAAAAxQMAIBgAAMYDACAIuwEAAMQDADC8AQAAxQMAEL0BAADEAwAwvgEBANgCACG_AQEA2AIAIcABAQDYAgAhwQEBANkCACHCAUAA2wIAIQi7AQAAxAMAMLwBAADFAwAQvQEAAMQDADC-AQEA2AIAIb8BAQDYAgAhwAEBANgCACHBAQEA2QIAIcIBQADbAgAhBL4BAQCGAwAhwAEBAIYDACHBAQEAhwMAIcIBQACIAwAhBL4BAQCGAwAhwAEBAIYDACHBAQEAhwMAIcIBQACIAwAhBL4BAQAAAAHAAQEAAAABwQEBAAAAAcIBQAAAAAEECQAAkAMAIL4BAQAAAAHOAQEAAAABzwEBAAAAAQIAAAAWACAfAADRAwAgAwAAABYAIB8AANEDACAgAADQAwAgARgAAM8FADACAAAAFgAgGAAA0AMAIAIAAAChAwAgGAAAzwMAIAO-AQEAhgMAIc4BAQCGAwAhzwEBAIcDACEECQAAjgMAIL4BAQCGAwAhzgEBAIYDACHPAQEAhwMAIQQJAACQAwAgvgEBAAAAAc4BAQAAAAHPAQEAAAABBB8AAMkDADCjAgAAygMAMKUCAADMAwAgqQIAAJ0DADAEHwAAvQMAMKMCAAC-AwAwpQIAAMADACCpAgAAwQMAMAMfAADNBQAgowIAAM4FACCpAgAAAQAgAx8AAMsFACCjAgAAzAUAIKkCAAANACADHwAAyQUAIKMCAADKBQAgqQIAADAAIAMfAADHBQAgowIAAMgFACCpAgAAMwAgAAAAAAABpgIAAACAAgIFpgIQAAAAAawCEAAAAAGtAhAAAAABrgIQAAAAAa8CEAAAAAEBpgIAAACFAgIFHwAAvgUAICAAAMUFACCjAgAAvwUAIKQCAADEBQAgqQIAAAEAIAUfAAC8BQAgIAAAwgUAIKMCAAC9BQAgpAIAAMEFACCpAgAAMAAgCx8AAOMDADAgAADoAwAwowIAAOQDADCkAgAA5QMAMKUCAADmAwAgpgIAAOcDADCnAgAA5wMAMKgCAADnAwAwqQIAAOcDADCqAgAA6QMAMKsCAADqAwAwIQMAANQDACAIAADWAwAgCQAA0gMAIAsAANMDACAOAADXAwAgvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdEBAQAAAAHaAUAAAAAB2wFAAAAAAegBAgAAAAHqAUAAAAAB6wFAAAAAAe0BAAAA7QEC7gEQAAAAAe8BIAAAAAHwAQEAAAAB8QECAAAAAfIBAgAAAAHzAQEAAAAB9AEBAAAAAfUBAQAAAAH2AQEAAAAB9wFAAAAAAfgBQAAAAAH5AQEAAAAB-gEBAAAAAfsBAQAAAAH8AQEAAAAB_QEBAAAAAf4BAQAAAAECAAAAIgAgHwAA7gMAIAMAAAAiACAfAADuAwAgIAAA7QMAIAEYAADABQAwJwMAAOcCACAIAAD0AgAgCQAA8QIAIAsAAPICACAMAADzAgAgDgAA9QIAILsBAADtAgAwvAEAACAAEL0BAADtAgAwvgEBAAAAAcIBQADbAgAhzwEBANkCACHQAQEA2AIAIdEBAQDYAgAh2gFAAN4CACHbAUAA2wIAIegBAgDaAgAh6QEBANkCACHqAUAA2wIAIesBQADeAgAh7QEAAO4C7QEi7gEQAO8CACHvASAA3QIAIfABAQDZAgAh8QECAPACACHyAQIA8AIAIfMBAQDZAgAh9AEBANkCACH1AQEA2QIAIfYBAQAAAAH3AUAA3gIAIfgBQADeAgAh-QEBANkCACH6AQEA2QIAIfsBAQDZAgAh_AEBANkCACH9AQEA2QIAIf4BAQDZAgAhnwIAAOwCACACAAAAIgAgGAAA7QMAIAIAAADrAwAgGAAA7AMAICC7AQAA6gMAMLwBAADrAwAQvQEAAOoDADC-AQEA2AIAIcIBQADbAgAhzwEBANkCACHQAQEA2AIAIdEBAQDYAgAh2gFAAN4CACHbAUAA2wIAIegBAgDaAgAh6QEBANkCACHqAUAA2wIAIesBQADeAgAh7QEAAO4C7QEi7gEQAO8CACHvASAA3QIAIfABAQDZAgAh8QECAPACACHyAQIA8AIAIfMBAQDZAgAh9AEBANkCACH1AQEA2QIAIfYBAQDZAgAh9wFAAN4CACH4AUAA3gIAIfkBAQDZAgAh-gEBANkCACH7AQEA2QIAIfwBAQDZAgAh_QEBANkCACH-AQEA2QIAISC7AQAA6gMAMLwBAADrAwAQvQEAAOoDADC-AQEA2AIAIcIBQADbAgAhzwEBANkCACHQAQEA2AIAIdEBAQDYAgAh2gFAAN4CACHbAUAA2wIAIegBAgDaAgAh6QEBANkCACHqAUAA2wIAIesBQADeAgAh7QEAAO4C7QEi7gEQAO8CACHvASAA3QIAIfABAQDZAgAh8QECAPACACHyAQIA8AIAIfMBAQDZAgAh9AEBANkCACH1AQEA2QIAIfYBAQDZAgAh9wFAAN4CACH4AUAA3gIAIfkBAQDZAgAh-gEBANkCACH7AQEA2QIAIfwBAQDZAgAh_QEBANkCACH-AQEA2QIAIRy-AQEAhgMAIcIBQACIAwAhzwEBAIcDACHQAQEAhgMAIdEBAQCGAwAh2gFAAJUDACHbAUAAiAMAIegBAgCzAwAh6gFAAIgDACHrAUAAlQMAIe0BAAC0A-0BIu4BEAC1AwAh7wEgAJYDACHwAQEAhwMAIfEBAgC2AwAh8gECALYDACHzAQEAhwMAIfQBAQCHAwAh9QEBAIcDACH2AQEAhwMAIfcBQACVAwAh-AFAAJUDACH5AQEAhwMAIfoBAQCHAwAh-wEBAIcDACH8AQEAhwMAIf0BAQCHAwAh_gEBAIcDACEhAwAAuQMAIAgAALsDACAJAAC3AwAgCwAAuAMAIA4AALwDACC-AQEAhgMAIcIBQACIAwAhzwEBAIcDACHQAQEAhgMAIdEBAQCGAwAh2gFAAJUDACHbAUAAiAMAIegBAgCzAwAh6gFAAIgDACHrAUAAlQMAIe0BAAC0A-0BIu4BEAC1AwAh7wEgAJYDACHwAQEAhwMAIfEBAgC2AwAh8gECALYDACHzAQEAhwMAIfQBAQCHAwAh9QEBAIcDACH2AQEAhwMAIfcBQACVAwAh-AFAAJUDACH5AQEAhwMAIfoBAQCHAwAh-wEBAIcDACH8AQEAhwMAIf0BAQCHAwAh_gEBAIcDACEhAwAA1AMAIAgAANYDACAJAADSAwAgCwAA0wMAIA4AANcDACC-AQEAAAABwgFAAAAAAc8BAQAAAAHQAQEAAAAB0QEBAAAAAdoBQAAAAAHbAUAAAAAB6AECAAAAAeoBQAAAAAHrAUAAAAAB7QEAAADtAQLuARAAAAAB7wEgAAAAAfABAQAAAAHxAQIAAAAB8gECAAAAAfMBAQAAAAH0AQEAAAAB9QEBAAAAAfYBAQAAAAH3AUAAAAAB-AFAAAAAAfkBAQAAAAH6AQEAAAAB-wEBAAAAAfwBAQAAAAH9AQEAAAAB_gEBAAAAAQMfAAC-BQAgowIAAL8FACCpAgAAAQAgAx8AALwFACCjAgAAvQUAIKkCAAAwACAEHwAA4wMAMKMCAADkAwAwpQIAAOYDACCpAgAA5wMAMAAAAAsfAACOBAAwIAAAkwQAMKMCAACPBAAwpAIAAJAEADClAgAAkQQAIKYCAACSBAAwpwIAAJIEADCoAgAAkgQAMKkCAACSBAAwqgIAAJQEADCrAgAAlQQAMAUfAAC0BQAgIAAAugUAIKMCAAC1BQAgpAIAALkFACCpAgAAAQAgCx8AAIIEADAgAACHBAAwowIAAIMEADCkAgAAhAQAMKUCAACFBAAgpgIAAIYEADCnAgAAhgQAMKgCAACGBAAwqQIAAIYEADCqAgAAiAQAMKsCAACJBAAwCx8AAPkDADAgAAD9AwAwowIAAPoDADCkAgAA-wMAMKUCAAD8AwAgpgIAAOcDADCnAgAA5wMAMKgCAADnAwAwqQIAAOcDADCqAgAA_gMAMKsCAADqAwAwIQMAANQDACAJAADSAwAgCwAA0wMAIAwAANUDACAOAADXAwAgvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdoBQAAAAAHbAUAAAAAB6AECAAAAAekBAQAAAAHqAUAAAAAB6wFAAAAAAe0BAAAA7QEC7gEQAAAAAe8BIAAAAAHwAQEAAAAB8QECAAAAAfIBAgAAAAHzAQEAAAAB9AEBAAAAAfUBAQAAAAH2AQEAAAAB9wFAAAAAAfgBQAAAAAH5AQEAAAAB-gEBAAAAAfsBAQAAAAH8AQEAAAAB_QEBAAAAAf4BAQAAAAECAAAAIgAgHwAAgQQAIAMAAAAiACAfAACBBAAgIAAAgAQAIAEYAAC4BQAwAgAAACIAIBgAAIAEACACAAAA6wMAIBgAAP8DACAcvgEBAIYDACHCAUAAiAMAIc8BAQCHAwAh0AEBAIYDACHaAUAAlQMAIdsBQACIAwAh6AECALMDACHpAQEAhwMAIeoBQACIAwAh6wFAAJUDACHtAQAAtAPtASLuARAAtQMAIe8BIACWAwAh8AEBAIcDACHxAQIAtgMAIfIBAgC2AwAh8wEBAIcDACH0AQEAhwMAIfUBAQCHAwAh9gEBAIcDACH3AUAAlQMAIfgBQACVAwAh-QEBAIcDACH6AQEAhwMAIfsBAQCHAwAh_AEBAIcDACH9AQEAhwMAIf4BAQCHAwAhIQMAALkDACAJAAC3AwAgCwAAuAMAIAwAALoDACAOAAC8AwAgvgEBAIYDACHCAUAAiAMAIc8BAQCHAwAh0AEBAIYDACHaAUAAlQMAIdsBQACIAwAh6AECALMDACHpAQEAhwMAIeoBQACIAwAh6wFAAJUDACHtAQAAtAPtASLuARAAtQMAIe8BIACWAwAh8AEBAIcDACHxAQIAtgMAIfIBAgC2AwAh8wEBAIcDACH0AQEAhwMAIfUBAQCHAwAh9gEBAIcDACH3AUAAlQMAIfgBQACVAwAh-QEBAIcDACH6AQEAhwMAIfsBAQCHAwAh_AEBAIcDACH9AQEAhwMAIf4BAQCHAwAhIQMAANQDACAJAADSAwAgCwAA0wMAIAwAANUDACAOAADXAwAgvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdoBQAAAAAHbAUAAAAAB6AECAAAAAekBAQAAAAHqAUAAAAAB6wFAAAAAAe0BAAAA7QEC7gEQAAAAAe8BIAAAAAHwAQEAAAAB8QECAAAAAfIBAgAAAAHzAQEAAAAB9AEBAAAAAfUBAQAAAAH2AQEAAAAB9wFAAAAAAfgBQAAAAAH5AQEAAAAB-gEBAAAAAfsBAQAAAAH8AQEAAAAB_QEBAAAAAf4BAQAAAAEPDwAApgMAIL4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHSAQEAAAAB0wEBAAAAAdQBAQAAAAHVAQEAAAAB1gEBAAAAAdcBAQAAAAHYAUAAAAAB2QEgAAAAAdoBQAAAAAHbAUAAAAABAgAAABIAIB8AAI0EACADAAAAEgAgHwAAjQQAICAAAIwEACABGAAAtwUAMBQIAAD0AgAgDwAA8QIAILsBAAD7AgAwvAEAABAAEL0BAAD7AgAwvgEBAAAAAcIBQADbAgAhzwEBANkCACHQAQEA2AIAIdEBAQDYAgAh0gEBANgCACHTAQEA2QIAIdQBAQDZAgAh1QEBANkCACHWAQEA2QIAIdcBAQDZAgAh2AFAAN4CACHZASAA3QIAIdoBQADeAgAh2wFAANsCACECAAAAEgAgGAAAjAQAIAIAAACKBAAgGAAAiwQAIBK7AQAAiQQAMLwBAACKBAAQvQEAAIkEADC-AQEA2AIAIcIBQADbAgAhzwEBANkCACHQAQEA2AIAIdEBAQDYAgAh0gEBANgCACHTAQEA2QIAIdQBAQDZAgAh1QEBANkCACHWAQEA2QIAIdcBAQDZAgAh2AFAAN4CACHZASAA3QIAIdoBQADeAgAh2wFAANsCACESuwEAAIkEADC8AQAAigQAEL0BAACJBAAwvgEBANgCACHCAUAA2wIAIc8BAQDZAgAh0AEBANgCACHRAQEA2AIAIdIBAQDYAgAh0wEBANkCACHUAQEA2QIAIdUBAQDZAgAh1gEBANkCACHXAQEA2QIAIdgBQADeAgAh2QEgAN0CACHaAUAA3gIAIdsBQADbAgAhDr4BAQCGAwAhwgFAAIgDACHPAQEAhwMAIdABAQCGAwAh0gEBAIYDACHTAQEAhwMAIdQBAQCHAwAh1QEBAIcDACHWAQEAhwMAIdcBAQCHAwAh2AFAAJUDACHZASAAlgMAIdoBQACVAwAh2wFAAIgDACEPDwAAmAMAIL4BAQCGAwAhwgFAAIgDACHPAQEAhwMAIdABAQCGAwAh0gEBAIYDACHTAQEAhwMAIdQBAQCHAwAh1QEBAIcDACHWAQEAhwMAIdcBAQCHAwAh2AFAAJUDACHZASAAlgMAIdoBQACVAwAh2wFAAIgDACEPDwAApgMAIL4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHSAQEAAAAB0wEBAAAAAdQBAQAAAAHVAQEAAAAB1gEBAAAAAdcBAQAAAAHYAUAAAAAB2QEgAAAAAdoBQAAAAAHbAUAAAAABEAMAAO8DACANAADxAwAgvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdoBQAAAAAHbAUAAAAAB7QEAAACFAgLuARAAAAABgAIAAACAAgKBAkAAAAABggJAAAAAAYMCQAAAAAGFAgIAAAABhgJAAAAAAQIAAAANACAfAACZBAAgAwAAAA0AIB8AAJkEACAgAACYBAAgARgAALYFADAVAwAA5wIAIAgAAPQCACANAADjAgAguwEAAPwCADC8AQAACwAQvQEAAPwCADC-AQEAAAABwgFAANsCACHPAQEA2QIAIdABAQDYAgAh0QEBANgCACHaAUAA3gIAIdsBQADbAgAh7QEAAP8ChQIi7gEQAP4CACGAAgAA_QKAAiKBAkAA2wIAIYICQADbAgAhgwJAAN4CACGFAgIA2gIAIYYCQADeAgAhAgAAAA0AIBgAAJgEACACAAAAlgQAIBgAAJcEACASuwEAAJUEADC8AQAAlgQAEL0BAACVBAAwvgEBANgCACHCAUAA2wIAIc8BAQDZAgAh0AEBANgCACHRAQEA2AIAIdoBQADeAgAh2wFAANsCACHtAQAA_wKFAiLuARAA_gIAIYACAAD9AoACIoECQADbAgAhggJAANsCACGDAkAA3gIAIYUCAgDaAgAhhgJAAN4CACESuwEAAJUEADC8AQAAlgQAEL0BAACVBAAwvgEBANgCACHCAUAA2wIAIc8BAQDZAgAh0AEBANgCACHRAQEA2AIAIdoBQADeAgAh2wFAANsCACHtAQAA_wKFAiLuARAA_gIAIYACAAD9AoACIoECQADbAgAhggJAANsCACGDAkAA3gIAIYUCAgDaAgAhhgJAAN4CACEOvgEBAIYDACHCAUAAiAMAIc8BAQCHAwAh0AEBAIYDACHaAUAAlQMAIdsBQACIAwAh7QEAAN8DhQIi7gEQAN4DACGAAgAA3QOAAiKBAkAAiAMAIYICQACIAwAhgwJAAJUDACGFAgIAswMAIYYCQACVAwAhEAMAAOADACANAADiAwAgvgEBAIYDACHCAUAAiAMAIc8BAQCHAwAh0AEBAIYDACHaAUAAlQMAIdsBQACIAwAh7QEAAN8DhQIi7gEQAN4DACGAAgAA3QOAAiKBAkAAiAMAIYICQACIAwAhgwJAAJUDACGFAgIAswMAIYYCQACVAwAhEAMAAO8DACANAADxAwAgvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdoBQAAAAAHbAUAAAAAB7QEAAACFAgLuARAAAAABgAIAAACAAgKBAkAAAAABggJAAAAAAYMCQAAAAAGFAgIAAAABhgJAAAAAAQQfAACOBAAwowIAAI8EADClAgAAkQQAIKkCAACSBAAwAx8AALQFACCjAgAAtQUAIKkCAAABACAEHwAAggQAMKMCAACDBAAwpQIAAIUEACCpAgAAhgQAMAQfAAD5AwAwowIAAPoDADClAgAA_AMAIKkCAADnAwAwAAAABR8AAK4FACAgAACyBQAgowIAAK8FACCkAgAAsQUAIKkCAAABACALHwAAowQAMCAAAKcEADCjAgAApAQAMKQCAAClBAAwpQIAAKYEACCmAgAA5wMAMKcCAADnAwAwqAIAAOcDADCpAgAA5wMAMKoCAACoBAAwqwIAAOoDADAhAwAA1AMAIAgAANYDACAJAADSAwAgCwAA0wMAIAwAANUDACC-AQEAAAABwgFAAAAAAc8BAQAAAAHQAQEAAAAB0QEBAAAAAdoBQAAAAAHbAUAAAAAB6AECAAAAAekBAQAAAAHqAUAAAAAB6wFAAAAAAe0BAAAA7QEC7gEQAAAAAe8BIAAAAAHxAQIAAAAB8gECAAAAAfMBAQAAAAH0AQEAAAAB9QEBAAAAAfYBAQAAAAH3AUAAAAAB-AFAAAAAAfkBAQAAAAH6AQEAAAAB-wEBAAAAAfwBAQAAAAH9AQEAAAAB_gEBAAAAAQIAAAAiACAfAACrBAAgAwAAACIAIB8AAKsEACAgAACqBAAgARgAALAFADACAAAAIgAgGAAAqgQAIAIAAADrAwAgGAAAqQQAIBy-AQEAhgMAIcIBQACIAwAhzwEBAIcDACHQAQEAhgMAIdEBAQCGAwAh2gFAAJUDACHbAUAAiAMAIegBAgCzAwAh6QEBAIcDACHqAUAAiAMAIesBQACVAwAh7QEAALQD7QEi7gEQALUDACHvASAAlgMAIfEBAgC2AwAh8gECALYDACHzAQEAhwMAIfQBAQCHAwAh9QEBAIcDACH2AQEAhwMAIfcBQACVAwAh-AFAAJUDACH5AQEAhwMAIfoBAQCHAwAh-wEBAIcDACH8AQEAhwMAIf0BAQCHAwAh_gEBAIcDACEhAwAAuQMAIAgAALsDACAJAAC3AwAgCwAAuAMAIAwAALoDACC-AQEAhgMAIcIBQACIAwAhzwEBAIcDACHQAQEAhgMAIdEBAQCGAwAh2gFAAJUDACHbAUAAiAMAIegBAgCzAwAh6QEBAIcDACHqAUAAiAMAIesBQACVAwAh7QEAALQD7QEi7gEQALUDACHvASAAlgMAIfEBAgC2AwAh8gECALYDACHzAQEAhwMAIfQBAQCHAwAh9QEBAIcDACH2AQEAhwMAIfcBQACVAwAh-AFAAJUDACH5AQEAhwMAIfoBAQCHAwAh-wEBAIcDACH8AQEAhwMAIf0BAQCHAwAh_gEBAIcDACEhAwAA1AMAIAgAANYDACAJAADSAwAgCwAA0wMAIAwAANUDACC-AQEAAAABwgFAAAAAAc8BAQAAAAHQAQEAAAAB0QEBAAAAAdoBQAAAAAHbAUAAAAAB6AECAAAAAekBAQAAAAHqAUAAAAAB6wFAAAAAAe0BAAAA7QEC7gEQAAAAAe8BIAAAAAHxAQIAAAAB8gECAAAAAfMBAQAAAAH0AQEAAAAB9QEBAAAAAfYBAQAAAAH3AUAAAAAB-AFAAAAAAfkBAQAAAAH6AQEAAAAB-wEBAAAAAfwBAQAAAAH9AQEAAAAB_gEBAAAAAQMfAACuBQAgowIAAK8FACCpAgAAAQAgBB8AAKMEADCjAgAApAQAMKUCAACmBAAgqQIAAOcDADAAAAABpgIAAACQAgILHwAAtAQAMCAAALkEADCjAgAAtQQAMKQCAAC2BAAwpQIAALcEACCmAgAAuAQAMKcCAAC4BAAwqAIAALgEADCpAgAAuAQAMKoCAAC6BAAwqwIAALsEADAFHwAAqAUAICAAAKwFACCjAgAAqQUAIKQCAACrBQAgqQIAAAEAIAkDAACsAwAgvgEBAAAAAcIBQAAAAAHQAQEAAAAB3QEBAAAAAd4BAQAAAAHfAQEAAAAB4AGAAAAAAeEBgAAAAAECAAAABQAgHwAAvwQAIAMAAAAFACAfAAC_BAAgIAAAvgQAIAEYAACqBQAwDgMAAOcCACAGAACBAwAguwEAAIADADC8AQAAAwAQvQEAAIADADC-AQEAAAABwgFAANsCACHQAQEA2AIAIdwBAQDZAgAh3QEBANgCACHeAQEA2AIAId8BAQDYAgAh4AEAANwCACDhAQAA3AIAIAIAAAAFACAYAAC-BAAgAgAAALwEACAYAAC9BAAgDLsBAAC7BAAwvAEAALwEABC9AQAAuwQAML4BAQDYAgAhwgFAANsCACHQAQEA2AIAIdwBAQDZAgAh3QEBANgCACHeAQEA2AIAId8BAQDYAgAh4AEAANwCACDhAQAA3AIAIAy7AQAAuwQAMLwBAAC8BAAQvQEAALsEADC-AQEA2AIAIcIBQADbAgAh0AEBANgCACHcAQEA2QIAId0BAQDYAgAh3gEBANgCACHfAQEA2AIAIeABAADcAgAg4QEAANwCACAIvgEBAIYDACHCAUAAiAMAIdABAQCGAwAh3QEBAIYDACHeAQEAhgMAId8BAQCGAwAh4AGAAAAAAeEBgAAAAAEJAwAAqgMAIL4BAQCGAwAhwgFAAIgDACHQAQEAhgMAId0BAQCGAwAh3gEBAIYDACHfAQEAhgMAIeABgAAAAAHhAYAAAAABCQMAAKwDACC-AQEAAAABwgFAAAAAAdABAQAAAAHdAQEAAAAB3gEBAAAAAd8BAQAAAAHgAYAAAAAB4QGAAAAAAQQfAAC0BAAwowIAALUEADClAgAAtwQAIKkCAAC4BAAwAx8AAKgFACCjAgAAqQUAIKkCAAABACAAAAAAAAsfAACDBQAwIAAAhwUAMKMCAACEBQAwpAIAAIUFADClAgAAhgUAIKYCAAC4BAAwpwIAALgEADCoAgAAuAQAMKkCAAC4BAAwqgIAAIgFADCrAgAAuwQAMAsfAAD6BAAwIAAA_gQAMKMCAAD7BAAwpAIAAPwEADClAgAA_QQAIKYCAACSBAAwpwIAAJIEADCoAgAAkgQAMKkCAACSBAAwqgIAAP8EADCrAgAAlQQAMAsfAADuBAAwIAAA8wQAMKMCAADvBAAwpAIAAPAEADClAgAA8QQAIKYCAADyBAAwpwIAAPIEADCoAgAA8gQAMKkCAADyBAAwqgIAAPQEADCrAgAA9QQAMAsfAADiBAAwIAAA5wQAMKMCAADjBAAwpAIAAOQEADClAgAA5QQAIKYCAADmBAAwpwIAAOYEADCoAgAA5gQAMKkCAADmBAAwqgIAAOgEADCrAgAA6QQAMAsfAADZBAAwIAAA3QQAMKMCAADaBAAwpAIAANsEADClAgAA3AQAIKYCAADnAwAwpwIAAOcDADCoAgAA5wMAMKkCAADnAwAwqgIAAN4EADCrAgAA6gMAMAsfAADNBAAwIAAA0gQAMKMCAADOBAAwpAIAAM8EADClAgAA0AQAIKYCAADRBAAwpwIAANEEADCoAgAA0QQAMKkCAADRBAAwqgIAANMEADCrAgAA1AQAMA4EAADABAAgvgEBAAAAAcIBQAAAAAHZASAAAAAB2gFAAAAAAdsBQAAAAAGHAgEAAAABiAIBAAAAAY4CAQAAAAGQAgAAAJACApECQAAAAAGSAgEAAAABkwIBAAAAAZQCQAAAAAECAAAANwAgHwAA2AQAIAMAAAA3ACAfAADYBAAgIAAA1wQAIAEYAACnBQAwEwMAAOcCACAEAADfAgAguwEAAOUCADC8AQAABwAQvQEAAOUCADC-AQEAAAABwgFAANsCACHQAQEA2AIAIdkBIADdAgAh2gFAAN4CACHbAUAA2wIAIYcCAQDYAgAhiAIBAAAAAY4CAQDYAgAhkAIAAOYCkAIikQJAAN4CACGSAgEA2QIAIZMCAQDZAgAhlAJAAN4CACECAAAANwAgGAAA1wQAIAIAAADVBAAgGAAA1gQAIBG7AQAA1AQAMLwBAADVBAAQvQEAANQEADC-AQEA2AIAIcIBQADbAgAh0AEBANgCACHZASAA3QIAIdoBQADeAgAh2wFAANsCACGHAgEA2AIAIYgCAQDYAgAhjgIBANgCACGQAgAA5gKQAiKRAkAA3gIAIZICAQDZAgAhkwIBANkCACGUAkAA3gIAIRG7AQAA1AQAMLwBAADVBAAQvQEAANQEADC-AQEA2AIAIcIBQADbAgAh0AEBANgCACHZASAA3QIAIdoBQADeAgAh2wFAANsCACGHAgEA2AIAIYgCAQDYAgAhjgIBANgCACGQAgAA5gKQAiKRAkAA3gIAIZICAQDZAgAhkwIBANkCACGUAkAA3gIAIQ2-AQEAhgMAIcIBQACIAwAh2QEgAJYDACHaAUAAlQMAIdsBQACIAwAhhwIBAIYDACGIAgEAhgMAIY4CAQCGAwAhkAIAALEEkAIikQJAAJUDACGSAgEAhwMAIZMCAQCHAwAhlAJAAJUDACEOBAAAsgQAIL4BAQCGAwAhwgFAAIgDACHZASAAlgMAIdoBQACVAwAh2wFAAIgDACGHAgEAhgMAIYgCAQCGAwAhjgIBAIYDACGQAgAAsQSQAiKRAkAAlQMAIZICAQCHAwAhkwIBAIcDACGUAkAAlQMAIQ4EAADABAAgvgEBAAAAAcIBQAAAAAHZASAAAAAB2gFAAAAAAdsBQAAAAAGHAgEAAAABiAIBAAAAAY4CAQAAAAGQAgAAAJACApECQAAAAAGSAgEAAAABkwIBAAAAAZQCQAAAAAEhCAAA1gMAIAkAANIDACALAADTAwAgDAAA1QMAIA4AANcDACC-AQEAAAABwgFAAAAAAc8BAQAAAAHRAQEAAAAB2gFAAAAAAdsBQAAAAAHoAQIAAAAB6QEBAAAAAeoBQAAAAAHrAUAAAAAB7QEAAADtAQLuARAAAAAB7wEgAAAAAfABAQAAAAHxAQIAAAAB8gECAAAAAfMBAQAAAAH0AQEAAAAB9QEBAAAAAfYBAQAAAAH3AUAAAAAB-AFAAAAAAfkBAQAAAAH6AQEAAAAB-wEBAAAAAfwBAQAAAAH9AQEAAAAB_gEBAAAAAQIAAAAiACAfAADhBAAgAwAAACIAIB8AAOEEACAgAADgBAAgARgAAKYFADACAAAAIgAgGAAA4AQAIAIAAADrAwAgGAAA3wQAIBy-AQEAhgMAIcIBQACIAwAhzwEBAIcDACHRAQEAhgMAIdoBQACVAwAh2wFAAIgDACHoAQIAswMAIekBAQCHAwAh6gFAAIgDACHrAUAAlQMAIe0BAAC0A-0BIu4BEAC1AwAh7wEgAJYDACHwAQEAhwMAIfEBAgC2AwAh8gECALYDACHzAQEAhwMAIfQBAQCHAwAh9QEBAIcDACH2AQEAhwMAIfcBQACVAwAh-AFAAJUDACH5AQEAhwMAIfoBAQCHAwAh-wEBAIcDACH8AQEAhwMAIf0BAQCHAwAh_gEBAIcDACEhCAAAuwMAIAkAALcDACALAAC4AwAgDAAAugMAIA4AALwDACC-AQEAhgMAIcIBQACIAwAhzwEBAIcDACHRAQEAhgMAIdoBQACVAwAh2wFAAIgDACHoAQIAswMAIekBAQCHAwAh6gFAAIgDACHrAUAAlQMAIe0BAAC0A-0BIu4BEAC1AwAh7wEgAJYDACHwAQEAhwMAIfEBAgC2AwAh8gECALYDACHzAQEAhwMAIfQBAQCHAwAh9QEBAIcDACH2AQEAhwMAIfcBQACVAwAh-AFAAJUDACH5AQEAhwMAIfoBAQCHAwAh-wEBAIcDACH8AQEAhwMAIf0BAQCHAwAh_gEBAIcDACEhCAAA1gMAIAkAANIDACALAADTAwAgDAAA1QMAIA4AANcDACC-AQEAAAABwgFAAAAAAc8BAQAAAAHRAQEAAAAB2gFAAAAAAdsBQAAAAAHoAQIAAAAB6QEBAAAAAeoBQAAAAAHrAUAAAAAB7QEAAADtAQLuARAAAAAB7wEgAAAAAfABAQAAAAHxAQIAAAAB8gECAAAAAfMBAQAAAAH0AQEAAAAB9QEBAAAAAfYBAQAAAAH3AUAAAAAB-AFAAAAAAfkBAQAAAAH6AQEAAAAB-wEBAAAAAfwBAQAAAAH9AQEAAAAB_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_QQAIKkCAACSBAAwBB8AAO4EADCjAgAA7wQAMKUCAADxBAAgqQIAAPIEADAEHwAA4gQAMKMCAADjBAAwpQIAAOUEACCpAgAA5gQAMAQfAADZBAAwowIAANoEADClAgAA3AQAIKkCAADnAwAwBB8AAM0EADCjAgAAzgQAMKUCAADQBAAgqQIAANEEADAAAAAAAAAOBAAAkgUAIAcAAJMFACANAACWBQAgEAAAlAUAIBEAAJUFACASAACXBQAgiAIAAIIDACCJAgAAggMAIIoCAACCAwAgiwIAAIIDACCMAgAAggMAIJUCAACCAwAgmQIAAIIDACCaAgAAggMAIAAAAAcDAACYBQAgCAAAnQUAIA0AAJYFACDPAQAAggMAINoBAACCAwAggwIAAIIDACCGAgAAggMAIAsDAACYBQAgBwAAkwUAIAkAAJkFACANAACWBQAgzwEAAIIDACDaAQAAggMAIIgCAACCAwAgiQIAAIIDACCKAgAAggMAIIsCAACCAwAgjAIAAIIDACAFAwAAmAUAIA0AAJYFACDaAQAAggMAIIgCAACCAwAgiQIAAIIDACAaAwAAmAUAIAgAAJ0FACAJAACaBQAgCwAAmwUAIAwAAJwFACAOAACeBQAgzwEAAIIDACDaAQAAggMAIOkBAACCAwAg6wEAAIIDACDuAQAAggMAIPABAACCAwAg8QEAAIIDACDyAQAAggMAIPMBAACCAwAg9AEAAIIDACD1AQAAggMAIPYBAACCAwAg9wEAAIIDACD4AQAAggMAIPkBAACCAwAg-gEAAIIDACD7AQAAggMAIPwBAACCAwAg_QEAAIIDACD-AQAAggMAIAoIAACdBQAgDwAAmgUAIM8BAACCAwAg0wEAAIIDACDUAQAAggMAINUBAACCAwAg1gEAAIIDACDXAQAAggMAINgBAACCAwAg2gEAAIIDACAHAwAAmAUAIAQAAJIFACDaAQAAggMAIJECAACCAwAgkgIAAIIDACCTAgAAggMAIJQCAACCAwAgCL4BAQAAAAHCAUAAAAAB3AEBAAAAAd0BAQAAAAHeAQEAAAAB3wEBAAAAAeABgAAAAAHhAYAAAAABDr4BAQAAAAHCAUAAAAABzwEBAAAAAdEBAQAAAAHaAUAAAAAB2wFAAAAAAe0BAAAAhQIC7gEQAAAAAYACAAAAgAICgQJAAAAAAYICQAAAAAGDAkAAAAABhQICAAAAAYYCQAAAAAENvgEBAAAAAcIBQAAAAAHPAQEAAAAB2QEgAAAAAdoBQAAAAAHbAUAAAAABhwIBAAAAAYgCAQAAAAGJAgEAAAABigIBAAAAAYsCgAAAAAGMAgEAAAABjQIBAAAAAQi-AQEAAAABwgFAAAAAAdkBIAAAAAHaAUAAAAAB2wFAAAAAAYcCAQAAAAGIAgEAAAABiQIBAAAAARy-AQEAAAABwgFAAAAAAc8BAQAAAAHRAQEAAAAB2gFAAAAAAdsBQAAAAAHoAQIAAAAB6QEBAAAAAeoBQAAAAAHrAUAAAAAB7QEAAADtAQLuARAAAAAB7wEgAAAAAfABAQAAAAHxAQIAAAAB8gECAAAAAfMBAQAAAAH0AQEAAAAB9QEBAAAAAfYBAQAAAAH3AUAAAAAB-AFAAAAAAfkBAQAAAAH6AQEAAAAB-wEBAAAAAfwBAQAAAAH9AQEAAAAB_gEBAAAAAQ2-AQEAAAABwgFAAAAAAdkBIAAAAAHaAUAAAAAB2wFAAAAAAYcCAQAAAAGIAgEAAAABjgIBAAAAAZACAAAAkAICkQJAAAAAAZICAQAAAAGTAgEAAAABlAJAAAAAARUEAACMBQAgBwAAjQUAIA0AAJAFACAQAACOBQAgEQAAjwUAIL4BAQAAAAHCAUAAAAAB2QEgAAAAAdsBQAAAAAGHAgEAAAABiAIBAAAAAYkCAQAAAAGKAgEAAAABiwKAAAAAAYwCAQAAAAGVAgEAAAABlgICAAAAAZcCAQAAAAGYAgEAAAABmQJAAAAAAZoCQAAAAAECAAAAAQAgHwAAqAUAIAi-AQEAAAABwgFAAAAAAdABAQAAAAHdAQEAAAAB3gEBAAAAAd8BAQAAAAHgAYAAAAAB4QGAAAAAAQMAAABAACAfAACoBQAgIAAArQUAIBcAAABAACAEAADHBAAgBwAAyAQAIA0AAMsEACAQAADJBAAgEQAAygQAIBgAAK0FACC-AQEAhgMAIcIBQACIAwAh2QEgAJYDACHbAUAAiAMAIYcCAQCGAwAhiAIBAIcDACGJAgEAhwMAIYoCAQCHAwAhiwKAAAAAAYwCAQCHAwAhlQIBAIcDACGWAgIAswMAIZcCAQCGAwAhmAIBAIYDACGZAkAAlQMAIZoCQACVAwAhFQQAAMcEACAHAADIBAAgDQAAywQAIBAAAMkEACARAADKBAAgvgEBAIYDACHCAUAAiAMAIdkBIACWAwAh2wFAAIgDACGHAgEAhgMAIYgCAQCHAwAhiQIBAIcDACGKAgEAhwMAIYsCgAAAAAGMAgEAhwMAIZUCAQCHAwAhlgICALMDACGXAgEAhgMAIZgCAQCGAwAhmQJAAJUDACGaAkAAlQMAIRUEAACMBQAgBwAAjQUAIA0AAJAFACAQAACOBQAgEgAAkQUAIL4BAQAAAAHCAUAAAAAB2QEgAAAAAdsBQAAAAAGHAgEAAAABiAIBAAAAAYkCAQAAAAGKAgEAAAABiwKAAAAAAYwCAQAAAAGVAgEAAAABlgICAAAAAZcCAQAAAAGYAgEAAAABmQJAAAAAAZoCQAAAAAECAAAAAQAgHwAArgUAIBy-AQEAAAABwgFAAAAAAc8BAQAAAAHQAQEAAAAB0QEBAAAAAdoBQAAAAAHbAUAAAAAB6AECAAAAAekBAQAAAAHqAUAAAAAB6wFAAAAAAe0BAAAA7QEC7gEQAAAAAe8BIAAAAAHxAQIAAAAB8gECAAAAAfMBAQAAAAH0AQEAAAAB9QEBAAAAAfYBAQAAAAH3AUAAAAAB-AFAAAAAAfkBAQAAAAH6AQEAAAAB-wEBAAAAAfwBAQAAAAH9AQEAAAAB_gEBAAAAAQMAAABAACAfAACuBQAgIAAAswUAIBcAAABAACAEAADHBAAgBwAAyAQAIA0AAMsEACAQAADJBAAgEgAAzAQAIBgAALMFACC-AQEAhgMAIcIBQACIAwAh2QEgAJYDACHbAUAAiAMAIYcCAQCGAwAhiAIBAIcDACGJAgEAhwMAIYoCAQCHAwAhiwKAAAAAAYwCAQCHAwAhlQIBAIcDACGWAgIAswMAIZcCAQCGAwAhmAIBAIYDACGZAkAAlQMAIZoCQACVAwAhFQQAAMcEACAHAADIBAAgDQAAywQAIBAAAMkEACASAADMBAAgvgEBAIYDACHCAUAAiAMAIdkBIACWAwAh2wFAAIgDACGHAgEAhgMAIYgCAQCHAwAhiQIBAIcDACGKAgEAhwMAIYsCgAAAAAGMAgEAhwMAIZUCAQCHAwAhlgICALMDACGXAgEAhgMAIZgCAQCGAwAhmQJAAJUDACGaAkAAlQMAIRUEAACMBQAgBwAAjQUAIA0AAJAFACARAACPBQAgEgAAkQUAIL4BAQAAAAHCAUAAAAAB2QEgAAAAAdsBQAAAAAGHAgEAAAABiAIBAAAAAYkCAQAAAAGKAgEAAAABiwKAAAAAAYwCAQAAAAGVAgEAAAABlgICAAAAAZcCAQAAAAGYAgEAAAABmQJAAAAAAZoCQAAAAAECAAAAAQAgHwAAtAUAIA6-AQEAAAABwgFAAAAAAc8BAQAAAAHQAQEAAAAB2gFAAAAAAdsBQAAAAAHtAQAAAIUCAu4BEAAAAAGAAgAAAIACAoECQAAAAAGCAkAAAAABgwJAAAAAAYUCAgAAAAGGAkAAAAABDr4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHSAQEAAAAB0wEBAAAAAdQBAQAAAAHVAQEAAAAB1gEBAAAAAdcBAQAAAAHYAUAAAAAB2QEgAAAAAdoBQAAAAAHbAUAAAAABHL4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHaAUAAAAAB2wFAAAAAAegBAgAAAAHpAQEAAAAB6gFAAAAAAesBQAAAAAHtAQAAAO0BAu4BEAAAAAHvASAAAAAB8AEBAAAAAfEBAgAAAAHyAQIAAAAB8wEBAAAAAfQBAQAAAAH1AQEAAAAB9gEBAAAAAfcBQAAAAAH4AUAAAAAB-QEBAAAAAfoBAQAAAAH7AQEAAAAB_AEBAAAAAf0BAQAAAAH-AQEAAAABAwAAAEAAIB8AALQFACAgAAC7BQAgFwAAAEAAIAQAAMcEACAHAADIBAAgDQAAywQAIBEAAMoEACASAADMBAAgGAAAuwUAIL4BAQCGAwAhwgFAAIgDACHZASAAlgMAIdsBQACIAwAhhwIBAIYDACGIAgEAhwMAIYkCAQCHAwAhigIBAIcDACGLAoAAAAABjAIBAIcDACGVAgEAhwMAIZYCAgCzAwAhlwIBAIYDACGYAgEAhgMAIZkCQACVAwAhmgJAAJUDACEVBAAAxwQAIAcAAMgEACANAADLBAAgEQAAygQAIBIAAMwEACC-AQEAhgMAIcIBQACIAwAh2QEgAJYDACHbAUAAiAMAIYcCAQCGAwAhiAIBAIcDACGJAgEAhwMAIYoCAQCHAwAhiwKAAAAAAYwCAQCHAwAhlQIBAIcDACGWAgIAswMAIZcCAQCGAwAhmAIBAIYDACGZAkAAlQMAIZoCQACVAwAhEQMAAJsEACAJAACcBAAgDQAAnQQAIL4BAQAAAAHCAUAAAAABzwEBAAAAAdABAQAAAAHZASAAAAAB2gFAAAAAAdsBQAAAAAGHAgEAAAABiAIBAAAAAYkCAQAAAAGKAgEAAAABiwKAAAAAAYwCAQAAAAGNAgEAAAABAgAAADAAIB8AALwFACAVBAAAjAUAIA0AAJAFACAQAACOBQAgEQAAjwUAIBIAAJEFACC-AQEAAAABwgFAAAAAAdkBIAAAAAHbAUAAAAABhwIBAAAAAYgCAQAAAAGJAgEAAAABigIBAAAAAYsCgAAAAAGMAgEAAAABlQIBAAAAAZYCAgAAAAGXAgEAAAABmAIBAAAAAZkCQAAAAAGaAkAAAAABAgAAAAEAIB8AAL4FACAcvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdEBAQAAAAHaAUAAAAAB2wFAAAAAAegBAgAAAAHqAUAAAAAB6wFAAAAAAe0BAAAA7QEC7gEQAAAAAe8BIAAAAAHwAQEAAAAB8QECAAAAAfIBAgAAAAHzAQEAAAAB9AEBAAAAAfUBAQAAAAH2AQEAAAAB9wFAAAAAAfgBQAAAAAH5AQEAAAAB-gEBAAAAAfsBAQAAAAH8AQEAAAAB_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-gEBAAAAAfsBAQAAAAH8AQEAAAAB_QEBAAAAAf4BAQAAAAECAAAAIgAgHwAA7QUAIBAIAAClAwAgvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdEBAQAAAAHSAQEAAAAB0wEBAAAAAdQBAQAAAAHVAQEAAAAB1gEBAAAAAdcBAQAAAAHYAUAAAAAB2QEgAAAAAdoBQAAAAAHbAUAAAAABAgAAABIAIB8AAO8FACADAAAAIAAgHwAA7QUAICAAAPMFACAkAAAAIAAgAwAAuQMAIAgAALsDACALAAC4AwAgDAAAugMAIA4AALwDACAYAADzBQAgvgEBAIYDACHCAUAAiAMAIc8BAQCHAwAh0AEBAIYDACHRAQEAhgMAIdoBQACVAwAh2wFAAIgDACHoAQIAswMAIekBAQCHAwAh6gFAAIgDACHrAUAAlQMAIe0BAAC0A-0BIu4BEAC1AwAh7wEgAJYDACHwAQEAhwMAIfEBAgC2AwAh8gECALYDACHzAQEAhwMAIfQBAQCHAwAh9QEBAIcDACH2AQEAhwMAIfcBQACVAwAh-AFAAJUDACH5AQEAhwMAIfoBAQCHAwAh-wEBAIcDACH8AQEAhwMAIf0BAQCHAwAh_gEBAIcDACEiAwAAuQMAIAgAALsDACALAAC4AwAgDAAAugMAIA4AALwDACC-AQEAhgMAIcIBQACIAwAhzwEBAIcDACHQAQEAhgMAIdEBAQCGAwAh2gFAAJUDACHbAUAAiAMAIegBAgCzAwAh6QEBAIcDACHqAUAAiAMAIesBQACVAwAh7QEAALQD7QEi7gEQALUDACHvASAAlgMAIfABAQCHAwAh8QECALYDACHyAQIAtgMAIfMBAQCHAwAh9AEBAIcDACH1AQEAhwMAIfYBAQCHAwAh9wFAAJUDACH4AUAAlQMAIfkBAQCHAwAh-gEBAIcDACH7AQEAhwMAIfwBAQCHAwAh_QEBAIcDACH-AQEAhwMAIQMAAAAQACAfAADvBQAgIAAA9gUAIBIAAAAQACAIAACXAwAgGAAA9gUAIL4BAQCGAwAhwgFAAIgDACHPAQEAhwMAIdABAQCGAwAh0QEBAIYDACHSAQEAhgMAIdMBAQCHAwAh1AEBAIcDACHVAQEAhwMAIdYBAQCHAwAh1wEBAIcDACHYAUAAlQMAIdkBIACWAwAh2gFAAJUDACHbAUAAiAMAIRAIAACXAwAgvgEBAIYDACHCAUAAiAMAIc8BAQCHAwAh0AEBAIYDACHRAQEAhgMAIdIBAQCGAwAh0wEBAIcDACHUAQEAhwMAIdUBAQCHAwAh1gEBAIcDACHXAQEAhwMAIdgBQACVAwAh2QEgAJYDACHaAUAAlQMAIdsBQACIAwAhIgMAANQDACAIAADWAwAgCQAA0gMAIAwAANUDACAOAADXAwAgvgEBAAAAAcIBQAAAAAHPAQEAAAAB0AEBAAAAAdEBAQAAAAHaAUAAAAAB2wFAAAAAAegBAgAAAAHpAQEAAAAB6gFAAAAAAesBQAAAAAHtAQAAAO0BAu4BEAAAAAHvASAAAAAB8AEBAAAAAfEBAgAAAAHyAQIAAAAB8wEBAAAAAfQBAQAAAAH1AQEAAAAB9gEBAAAAAfcBQAAAAAH4AUAAAAAB-QEBAAAAAfoBAQAAAAH7AQEAAAAB_AEBAAAAAf0BAQAAAAH-AQEAAAABAgAAACIAIB8AAPcFACADAAAAIAAgHwAA9wUAICAAAPsFACAkAAAAIAAgAwAAuQMAIAgAALsDACAJAAC3AwAgDAAAugMAIA4AALwDACAYAAD7BQAgvgEBAIYDACHCAUAAiAMAIc8BAQCHAwAh0AEBAIYDACHRAQEAhgMAIdoBQACVAwAh2wFAAIgDACHoAQIAswMAIekBAQCHAwAh6gFAAIgDACHrAUAAlQMAIe0BAAC0A-0BIu4BEAC1AwAh7wEgAJYDACHwAQEAhwMAIfEBAgC2AwAh8gECALYDACHzAQEAhwMAIfQBAQCHAwAh9QEBAIcDACH2AQEAhwMAIfcBQACVAwAh-AFAAJUDACH5AQEAhwMAIfoBAQCHAwAh-wEBAIcDACH8AQEAhwMAIf0BAQCHAwAh_gEBAIcDACEiAwAAuQMAIAgAALsDACAJAAC3AwAgDAAAugMAIA4AALwDACC-AQEAhgMAIcIBQACIAwAhzwEBAIcDACHQAQEAhgMAIdEBAQCGAwAh2gFAAJUDACHbAUAAiAMAIegBAgCzAwAh6QEBAIcDACHqAUAAiAMAIesBQACVAwAh7QEAALQD7QEi7gEQALUDACHvASAAlgMAIfABAQCHAwAh8QECALYDACHyAQIAtgMAIfMBAQCHAwAh9AEBAIcDACH1AQEAhwMAIfYBAQCHAwAh9wFAAJUDACH4AUAAlQMAIfkBAQCHAwAh-gEBAIcDACH7AQEAhwMAIfwBAQCHAwAh_QEBAIcDACH-AQEAhwMAIQcEBgIFABEHDgUNNQkQMQYRNAsSOAMCAwABBggDAwMAAQQJAgUABAEECgAEAwABBQAQCAAGDSwJBQMAAQUADwcPBQkTBw0oCQMFAA4IAAYPFwgCCQAHCgAJBwMAAQUADQgABgkYCAscCgwdBQ4fCwEKAAkDAwABBQAMDSMJAQ0kAAIJJQALJgABDycAAwcpAAkqAA0rAAENLQAGBDkABzoADT0AEDsAETwAEj4AAAAABQUAFiUAFyYAGCcAGSgAGgAAAAAABQUAFiUAFyYAGCcAGSgAGgEDAAEBAwABAwUAHycAICgAIQAAAAMFAB8nACAoACEBAwABAQMAAQMFACYnACcoACgAAAADBQAmJwAnKAAoAQMAAQEDAAEDBQAtJwAuKAAvAAAAAwUALScALigALwIDAAEIAAYCAwABCAAGBQUANCUANSYANicANygAOAAAAAAABQUANCUANSYANicANygAOAQDAAEIAAYMuAEFDrkBCwQDAAEIAAYMvwEFDsABCwUFAD0lAD4mAD8nAEAoAEEAAAAAAAUFAD0lAD4mAD8nAEAoAEECAwABBtIBAwIDAAEG2AEDAwUARicARygASAAAAAMFAEYnAEcoAEgBCAAGAQgABgMFAE0nAE4oAE8AAAADBQBNJwBOKABPAgkABwoACQIJAAcKAAkDBQBUJwBVKABWAAAAAwUAVCcAVSgAVgEKAAkBCgAJAwUAWycAXCgAXQAAAAMFAFsnAFwoAF0TAgEUPwEVQgEWQwEXRAEZRgEaSBIbSRMcSwEdTRIeThQhTwEiUAEjURIpVBUqVRsrVgMsVwMtWAMuWQMvWgMwXAMxXhIyXxwzYQM0YxI1ZB02ZQM3ZgM4ZxI5ah46ayI7bAs8bQs9bgs-bws_cAtAcgtBdBJCdSNDdwtEeRJFeiRGewtHfAtIfRJJgAElSoEBKUuCAQZMgwEGTYQBBk6FAQZPhgEGUIgBBlGKARJSiwEqU40BBlSPARJVkAErVpEBBleSAQZYkwESWZYBLFqXATBbmAEFXJkBBV2aAQVemwEFX5wBBWCeAQVhoAESYqEBMWOjAQVkpQESZaYBMmanAQVnqAEFaKkBEmmsATNqrQE5a64BCWyvAQltsAEJbrEBCW-yAQlwtAEJcbYBEnK3ATpzuwEJdL0BEnW-ATt2wQEJd8IBCXjDARJ5xgE8escBQnvIAQJ8yQECfcoBAn7LAQJ_zAECgAHOAQKBAdABEoIB0QFDgwHUAQKEAdYBEoUB1wFEhgHZAQKHAdoBAogB2wESiQHeAUWKAd8BSYsB4AEHjAHhAQeNAeIBB44B4wEHjwHkAQeQAeYBB5EB6AESkgHpAUqTAesBB5QB7QESlQHuAUuWAe8BB5cB8AEHmAHxARKZAfQBTJoB9QFQmwH2AQicAfcBCJ0B-AEIngH5AQifAfoBCKAB_AEIoQH-ARKiAf8BUaMBgQIIpAGDAhKlAYQCUqYBhQIIpwGGAgioAYcCEqkBigJTqgGLAlerAYwCCqwBjQIKrQGOAgquAY8CCq8BkAIKsAGSAgqxAZQCErIBlQJYswGXAgq0AZkCErUBmgJZtgGbAgq3AZwCCrgBnQISuQGgAlq6AaECXg"
 };
 async function decodeBase64AsWasm(wasmBase64) {
   const { Buffer: Buffer2 } = await import("buffer");
@@ -707,6 +707,47 @@ async function hashToken(token) {
 }
 async function compareToken(token, hash) {
   return import_bcrypt.default.compare(token, hash);
+}
+
+// src/integrations/email/email.service.ts
+var import_resend = require("resend");
+var resendClient = null;
+function getClient() {
+  if (!env.RESEND_API_KEY) return null;
+  if (!resendClient) {
+    resendClient = new import_resend.Resend(env.RESEND_API_KEY);
+  }
+  return resendClient;
+}
+async function sendForgotPasswordEmail(email, token) {
+  const client = getClient();
+  const resetLink = `${env.FRONTEND_URL}/reset-password/${token}`;
+  if (!client) {
+    console.log(`[EMAIL] Resend n\xE3o configurado. Link para ${email}: ${resetLink}`);
+    return;
+  }
+  const { error } = await client.emails.send({
+    from: env.EMAIL_FROM,
+    to: email,
+    subject: "Redefini\xE7\xE3o de senha \u2014 Ciclus",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2 style="color: #185FA5;">Redefini\xE7\xE3o de senha</h2>
+        <p>Voc\xEA solicitou a redefini\xE7\xE3o da sua senha no Ciclus.</p>
+        <p>Clique no link abaixo para criar uma nova senha:</p>
+        <a href="${resetLink}" style="display: inline-block; padding: 12px 24px; background-color: #185FA5; color: #fff; text-decoration: none; border-radius: 4px; margin: 16px 0;">
+          Redefinir senha
+        </a>
+        <p style="color: #666; font-size: 14px;">Este link expira em 1 hora.</p>
+        <p style="color: #666; font-size: 14px;">Se voc\xEA n\xE3o solicitou esta redefini\xE7\xE3o, ignore este email.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="color: #999; font-size: 12px;">Ciclus \u2014 Gest\xE3o de Servi\xE7os Recorrentes</p>
+      </div>
+    `
+  });
+  if (error) {
+    console.error(`[EMAIL] Falha ao enviar email para ${email}:`, error);
+  }
 }
 
 // src/modules/auth/auth.service.ts
@@ -811,7 +852,7 @@ async function forgotPassword(email) {
       resetPasswordExpiresAt: new Date(Date.now() + 60 * 60 * 1e3)
     }
   });
-  console.log(`[FORGOT PASSWORD] Token for ${email}: ${token}`);
+  await sendForgotPasswordEmail(email, token);
 }
 async function resetPassword(token, newPassword) {
   const users = await prisma.user.findMany({
@@ -862,9 +903,11 @@ function validateOrThrow(schema, data) {
 
 // src/modules/auth/dtos/login.dto.ts
 var import_zod3 = require("zod");
+var PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+var PASSWORD_ERROR = "Senha deve conter no m\xEDnimo 8 caracteres, 1 letra mai\xFAscula, 1 n\xFAmero e 1 caractere especial";
 var loginSchema = import_zod3.z.object({
   email: import_zod3.z.string().email("Email inv\xE1lido"),
-  password: import_zod3.z.string().min(1, "Senha \xE9 obrigat\xF3ria")
+  password: import_zod3.z.string().min(8, PASSWORD_ERROR).regex(PASSWORD_REGEX, PASSWORD_ERROR)
 }).strict();
 
 // src/modules/auth/dtos/change-password.dto.ts
@@ -1051,7 +1094,7 @@ function authorize(...allowedRoles) {
 function maskCpf(cpf) {
   const digits = cpf.replace(/\D/g, "");
   if (digits.length !== 11) return "***.***.***-**";
-  return `***.***.***-${digits.slice(-2)}`;
+  return `${digits.slice(0, 3)}.***.***-${digits.slice(-2)}`;
 }
 function maskCnpj(cnpj) {
   const digits = cnpj.replace(/\D/g, "");
@@ -1061,12 +1104,6 @@ function maskCnpj(cnpj) {
 function maskDocument(document, type) {
   if (type === "CPF") return maskCpf(document);
   return maskCnpj(document);
-}
-function maskEmail(email) {
-  const [local, domain] = email.split("@");
-  if (!local || !domain) return email;
-  const visible = local.slice(0, Math.min(2, local.length));
-  return `${visible}***@${domain}`;
 }
 function maskCustomerForTechnician(customer) {
   return {
@@ -1670,6 +1707,41 @@ async function getServices(companyId, employeeId, filters, query) {
   ]);
   return { data: services, meta: buildMeta(total, pagination) };
 }
+async function getAvailability(companyId, employeeId, date, _duration) {
+  const targetDate = date ? new Date(date) : /* @__PURE__ */ new Date();
+  if (isNaN(targetDate.getTime())) {
+    throw new AppError("Data inv\xE1lida", 400, "INVALID_DATE");
+  }
+  const dayStart = new Date(targetDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(targetDate);
+  dayEnd.setHours(23, 59, 59, 999);
+  const services = await prisma.service.findMany({
+    where: {
+      companyId,
+      employeeId,
+      deletedAt: null,
+      status: { notIn: ["CANCELLED", "CONFIRMED"] },
+      scheduledAt: { gte: dayStart, lte: dayEnd }
+    },
+    include: {
+      customer: { select: { name: true } }
+    },
+    orderBy: { scheduledAt: "asc" }
+  });
+  return services.map((s) => {
+    const duration = s.estimatedDurationMinutes ?? s.durationMinutes ?? 60;
+    const start3 = s.scheduledAt;
+    const end = new Date(start3.getTime() + duration * 6e4);
+    return {
+      start: start3.toISOString(),
+      end: end.toISOString(),
+      serviceId: s.id,
+      serviceNumber: s.serviceNumber,
+      customerName: s.customer.name
+    };
+  });
+}
 
 // src/modules/employees/dtos/create-employee.dto.ts
 var import_zod11 = require("zod");
@@ -1741,6 +1813,18 @@ async function toggle4(request, reply) {
   const toggled = await toggle3(user.companyId, id);
   return reply.status(200).send({ data: toggled });
 }
+async function getAvailability2(request, reply) {
+  const user = request.user;
+  const { id } = request.params;
+  const { date, duration } = request.query;
+  const result = await getAvailability(
+    user.companyId,
+    id,
+    date,
+    duration ? parseInt(duration, 10) : void 0
+  );
+  return reply.status(200).send({ data: result });
+}
 async function getServices2(request, reply) {
   const user = request.user;
   const { id } = request.params;
@@ -1785,6 +1869,11 @@ async function employeesRoutes(app2) {
     "/:id/services",
     { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
     getServices2
+  );
+  app2.get(
+    "/:id/availability",
+    { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN")] },
+    getAvailability2
   );
 }
 
@@ -1856,18 +1945,19 @@ function mapCustomerToFrontend(c, role) {
     createdAt: c.createdAt,
     updatedAt: c.updatedAt
   };
+  const email = c.email ?? null;
   if (role === "TECHNICIAN") {
     return {
       ...base,
       document: c.document ? maskDocument(c.document, c.documentType || "CNPJ") : null,
-      email: c.email ? maskEmail(c.email) : null,
+      email,
       address: null
     };
   }
   return {
     ...base,
     document: c.document ? maskDocument(c.document, c.documentType || "CNPJ") : null,
-    email: c.email ? maskEmail(c.email) : null,
+    email,
     address: c.address ?? null
   };
 }
@@ -2509,15 +2599,6 @@ async function getNextServiceNumber(companyId) {
   if (!row) throw new Error("Falha ao gerar n\xFAmero de servi\xE7o");
   return row.last_service_number;
 }
-async function getNextServiceNumberInTx(tx, companyId) {
-  const result = await tx.$queryRawUnsafe(
-    `UPDATE companies SET last_service_number = last_service_number + 1 WHERE id = $1 RETURNING last_service_number`,
-    companyId
-  );
-  const row = result[0];
-  if (!row) throw new Error("Falha ao gerar n\xFAmero de servi\xE7o");
-  return row.last_service_number;
-}
 
 // src/modules/contracts/contracts.service.ts
 async function list9(companyId, filters, query) {
@@ -2590,37 +2671,37 @@ async function create9(companyId, data, userId) {
         notes: data.notes ?? null
       }
     });
-    const serviceNumber = await getNextServiceNumberInTx(tx, companyId);
-    const service = await tx.service.create({
+    const serviceNumber = await getNextServiceNumber(companyId);
+    await tx.service.create({
       data: {
         serviceNumber,
         companyId,
         contractId: contract.id,
         customerId: data.customerId,
-        serviceType: data.serviceType,
+        serviceType: null,
         scheduledAt: startDate,
         status: "SCHEDULED",
         amount: data.amount,
-        employeeId: data.employeeId ?? null
+        employeeId: data.employeeId ?? null,
+        estimatedDurationMinutes: 60
       }
     });
-    return { contract, service };
+    return contract;
   });
   await createAuditLog({
     companyId,
     userId,
     entityType: "Contract",
-    entityId: result.contract.id,
+    entityId: result.id,
     action: "CREATE",
-    newData: { customerId: result.contract.customerId, frequency: result.contract.frequency, amount: result.contract.amount.toString() }
+    newData: { customerId: result.customerId, frequency: result.frequency, amount: result.amount.toString() }
   });
-  const { customer: _, ...rest } = result.contract;
+  const { customer: _, ...rest } = result;
   return {
     ...rest,
     customerName: "",
     nextVisitDate: rest.nextServiceDate ?? null,
-    value: Number(rest.amount),
-    serviceId: result.service.id
+    value: Number(rest.amount)
   };
 }
 async function getById9(companyId, contractId) {
@@ -2708,16 +2789,8 @@ async function cancel(companyId, contractId, data, userId) {
 // src/modules/contracts/dtos/create-contract.dto.ts
 var import_zod21 = require("zod");
 var contractFrequencySchema = import_zod21.z.enum(["MONTHLY", "BIMONTHLY", "QUARTERLY", "SEMIANNUAL", "YEARLY"]);
-var serviceTypeSchema = import_zod21.z.enum([
-  "AIR_CONDITIONING",
-  "PEST_CONTROL",
-  "CLEANING",
-  "BUILDING_MAINTENANCE",
-  "OTHER"
-]);
 var createContractSchema = import_zod21.z.object({
   customerId: import_zod21.z.string().uuid("Cliente inv\xE1lido"),
-  serviceType: serviceTypeSchema,
   frequency: contractFrequencySchema,
   startDate: import_zod21.z.string().min(1, "Data de in\xEDcio \xE9 obrigat\xF3ria"),
   endDate: import_zod21.z.string().min(1, "Data de t\xE9rmino \xE9 obrigat\xF3ria"),
@@ -2774,7 +2847,6 @@ async function create10(request, reply) {
   const body = validateOrThrow(createContractSchema, request.body);
   const result = await create9(user.companyId, {
     customerId: body.customerId,
-    serviceType: body.serviceType,
     frequency: body.frequency,
     startDate: body.startDate,
     endDate: body.endDate,
@@ -2834,10 +2906,530 @@ async function contractsRoutes(app2) {
   );
 }
 
+// src/integrations/pdf/pdf.service.ts
+var import_pdfkit = __toESM(require("pdfkit"), 1);
+
+// src/integrations/storage/storage.service.ts
+var import_supabase_js = require("@supabase/supabase-js");
+function validateImageMime(buffer) {
+  if (buffer.length < 4) return null;
+  if (buffer[0] === 255 && buffer[1] === 216 && buffer[2] === 255) return "jpeg";
+  if (buffer[0] === 137 && buffer[1] === 80 && buffer[2] === 78 && buffer[3] === 71) return "png";
+  if (buffer[0] === 82 && buffer[1] === 73 && buffer[2] === 70 && buffer[3] === 70) return "webp";
+  return null;
+}
+function createClient() {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    return null;
+  }
+  return (0, import_supabase_js.createClient)(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+}
+async function uploadFile(bucket, path3, buffer, mimeType) {
+  const client = createClient();
+  if (!client) {
+    throw new AppError("Storage n\xE3o configurado", 500, "STORAGE_NOT_CONFIGURED");
+  }
+  const ext = validateImageMime(buffer);
+  if (ext) {
+    mimeType = ext === "jpeg" ? "image/jpeg" : ext === "png" ? "image/png" : "image/webp";
+  }
+  const { data, error } = await client.storage.from(bucket).upload(path3, buffer, {
+    contentType: mimeType,
+    upsert: true
+  });
+  if (error) {
+    throw new AppError(`Erro no upload: ${error.message}`, 500, "STORAGE_UPLOAD_ERROR");
+  }
+  const { data: urlData } = client.storage.from(bucket).getPublicUrl(data.path);
+  return urlData.publicUrl;
+}
+
+// src/integrations/pdf/templates/service-report.ts
+var REPORT_CONFIG_BY_NICHE = {
+  AIR_CONDITIONING: {
+    title: "Relat\xF3rio de Manuten\xE7\xE3o \u2014 PMOC",
+    equipmentLabel: "Equipamentos Atendidos",
+    showEquipmentTable: true,
+    regulatoryFooter: "Documento elaborado em conformidade com a Portaria GM/MS n\xBA 3.523/1998, que institui o Plano de Manuten\xE7\xE3o, Opera\xE7\xE3o e Controle (PMOC) de sistemas de climatiza\xE7\xE3o."
+  },
+  PEST_CONTROL: {
+    title: "Certificado de Dedetiza\xE7\xE3o",
+    equipmentLabel: "\xC1reas Tratadas",
+    showEquipmentTable: false,
+    regulatoryFooter: "Produtos utilizados registrados na ANVISA conforme legisla\xE7\xE3o vigente. Procedimento realizado conforme RDC n\xBA 52/2009."
+  },
+  WATER_TANK: {
+    title: "Certificado de Limpeza de Caixa d'\xC1gua",
+    equipmentLabel: "Reservat\xF3rios Atendidos",
+    showEquipmentTable: true,
+    regulatoryFooter: "Procedimento realizado conforme Portaria de Consolida\xE7\xE3o n\xBA 5/2017 (Anexo XX), que disp\xF5e sobre o controle de qualidade da \xE1gua para consumo humano."
+  },
+  BUILDING_MAINTENANCE: {
+    title: "Relat\xF3rio de Manuten\xE7\xE3o Predial",
+    equipmentLabel: "Itens Atendidos",
+    showEquipmentTable: true
+  },
+  ELEVATOR: {
+    title: "Relat\xF3rio de Manuten\xE7\xE3o de Elevadores",
+    equipmentLabel: "Equipamentos Atendidos",
+    showEquipmentTable: true,
+    regulatoryFooter: "Manuten\xE7\xE3o realizada em conformidade com a NBR 16083 (inspe\xE7\xE3o predial) e normas t\xE9cnicas vigentes para equipamentos de transporte vertical."
+  },
+  GENERAL: {
+    title: "Ordem de Servi\xE7o",
+    equipmentLabel: "Itens Atendidos",
+    showEquipmentTable: true
+  }
+};
+function getReportConfig(niche) {
+  if (!niche) return REPORT_CONFIG_BY_NICHE.GENERAL;
+  return REPORT_CONFIG_BY_NICHE[niche] ?? REPORT_CONFIG_BY_NICHE.GENERAL;
+}
+function renderServiceReport(doc, serviceId, data) {
+  const config2 = getReportConfig(data.companyNiche);
+  const regularFont = "Helvetica";
+  const boldFont = "Helvetica-Bold";
+  doc.fontSize(10).font(regularFont);
+  const pageWidth = doc.page?.width ? doc.page.width - 100 : 400;
+  const drawLine = () => {
+    const y = doc.y;
+    doc.moveTo(50, y).lineTo(pageWidth + 50, y).stroke();
+    doc.moveDown(0.5);
+  };
+  doc.fontSize(20).font(boldFont).text(data.companyName, { align: "left" });
+  doc.moveDown(0.5);
+  doc.fontSize(16).font(boldFont).text(config2.title, { align: "center" });
+  doc.fontSize(11).font(regularFont).text(`OS N\xBA ${data.serviceNumber}`, { align: "center" });
+  doc.moveDown(1);
+  drawLine();
+  doc.fontSize(12).font(boldFont).text("Dados do Servi\xE7o");
+  doc.moveDown(0.3);
+  doc.fontSize(10).font(regularFont);
+  doc.text(`Tipo: ${data.serviceType || "\u2014"}`);
+  doc.text(`Data agendada: ${data.scheduledAt.toLocaleDateString("pt-BR")}`);
+  doc.text(
+    `Data de execu\xE7\xE3o: ${data.completedDate ? data.completedDate.toLocaleDateString("pt-BR") : "\u2014"}`
+  );
+  doc.text(
+    `Dura\xE7\xE3o: ${data.durationMinutes ? `${data.durationMinutes} min` : "\u2014"}`
+  );
+  doc.text(`T\xE9cnico: ${data.technicianName || "\u2014"}`);
+  doc.moveDown(1);
+  drawLine();
+  doc.fontSize(12).font(boldFont).text("Dados do Cliente");
+  doc.moveDown(0.3);
+  doc.fontSize(10).font(regularFont);
+  doc.text(`Nome: ${data.customerName}`);
+  if (data.customerAddress) {
+    const addr = data.customerAddress;
+    doc.text(
+      `Endere\xE7o: ${addr.street || ""}, ${addr.number || ""}${addr.neighborhood ? ` - ${addr.neighborhood}` : ""}${addr.city ? ` - ${addr.city}` : ""}${addr.state ? `/${addr.state}` : ""}`
+    );
+  }
+  doc.moveDown(1);
+  drawLine();
+  if (data.equipment.length > 0 && config2.showEquipmentTable) {
+    doc.fontSize(12).font(boldFont).text(config2.equipmentLabel);
+    doc.moveDown(0.3);
+    doc.fontSize(10).font(regularFont);
+    for (const eq of data.equipment) {
+      const brandModel = [eq.brand, eq.model].filter(Boolean).join(" / ");
+      doc.text(`Tipo: ${eq.type}`);
+      doc.text(`Marca/Modelo: ${brandModel || "\u2014"}`);
+      doc.text(`Localiza\xE7\xE3o: ${eq.location || "\u2014"}`);
+      if (eq.notes) doc.text(`Observa\xE7\xF5es: ${eq.notes}`);
+      doc.moveDown(0.3);
+    }
+  } else if (data.equipment.length > 0 && !config2.showEquipmentTable) {
+    doc.fontSize(12).font(boldFont).text(config2.equipmentLabel);
+    doc.moveDown(0.3);
+    doc.fontSize(10).font(regularFont);
+    const locations = data.equipment.map((eq) => eq.location || eq.type).join(", ");
+    doc.text(locations);
+  }
+  if (data.executionNotes) {
+    doc.moveDown(1);
+    drawLine();
+    doc.fontSize(12).font(boldFont).text("Observa\xE7\xF5es do T\xE9cnico");
+    doc.moveDown(0.3);
+    doc.fontSize(10).font(regularFont).text(data.executionNotes);
+  }
+  doc.moveDown(1);
+  drawLine();
+  doc.fontSize(12).font(boldFont).text("Assinatura Digital");
+  doc.moveDown(0.3);
+  doc.fontSize(10).font(regularFont);
+  if (data.confirmedAt) {
+    doc.text(`Confirmado por: ${data.confirmedName || "\u2014"}`);
+    if (data.confirmedDocument) {
+      const docLabel = data.confirmedDocumentType === "CNPJ" ? "CNPJ" : "CPF";
+      doc.text(`${docLabel}: ${data.confirmedDocument}`);
+    }
+    doc.text(
+      `Data e hora: ${data.confirmedAt.toLocaleDateString("pt-BR")} \xE0s ${data.confirmedAt.toLocaleTimeString("pt-BR")}`
+    );
+    doc.text(`IP: ${data.confirmedIp || "\u2014"}`);
+    if (data.confirmedUserAgent) {
+      doc.text(`Dispositivo: ${data.confirmedUserAgent}`);
+    }
+  } else {
+    doc.text("Aguardando confirma\xE7\xE3o do cliente");
+  }
+  if (config2.regulatoryFooter) {
+    doc.moveDown(1);
+    drawLine();
+    doc.fontSize(8).font(regularFont).fillColor("#444").text(config2.regulatoryFooter, { align: "justify" });
+    doc.fillColor("#000");
+  }
+  doc.moveDown(2);
+  doc.fontSize(8).font(regularFont).fillColor("#666");
+  doc.text(`Gerado pelo Ciclus em ${(/* @__PURE__ */ new Date()).toLocaleString("pt-BR")}`, {
+    align: "center"
+  });
+  doc.text(`ID da OS: ${serviceId}`, { align: "center" });
+}
+
+// src/integrations/pdf/pdf.service.ts
+async function generateServiceReportBuffer(serviceId, data) {
+  const doc = new import_pdfkit.default({ margin: 50 });
+  const chunks = [];
+  doc.on("data", (chunk) => chunks.push(chunk));
+  return new Promise((resolve, reject) => {
+    doc.on("end", () => {
+      resolve(Buffer.concat(chunks));
+    });
+    doc.on("error", reject);
+    renderServiceReport(doc, serviceId, data);
+    doc.end();
+  });
+}
+async function generateServiceReport(serviceId, data) {
+  const doc = new import_pdfkit.default({ margin: 50 });
+  const chunks = [];
+  doc.on("data", (chunk) => chunks.push(chunk));
+  return new Promise((resolve, reject) => {
+    doc.on("end", async () => {
+      const pdfBuffer = Buffer.concat(chunks);
+      try {
+        const url = await uploadFile(
+          env.SUPABASE_STORAGE_BUCKET,
+          `companies/${data.companyId}/reports/${serviceId}.pdf`,
+          pdfBuffer,
+          "application/pdf"
+        );
+        resolve(url);
+      } catch (err) {
+        console.error("[generateServiceReport] Upload failed:", err);
+        resolve("");
+      }
+    });
+    doc.on("error", reject);
+    renderServiceReport(doc, serviceId, data);
+    doc.end();
+  });
+}
+
+// src/modules/services/services.helpers.ts
+async function buildServiceReportData(serviceId) {
+  const service = await prisma.service.findUniqueOrThrow({
+    where: { id: serviceId },
+    include: {
+      company: { select: { id: true, name: true, niche: true, logoUrl: true } },
+      customer: { select: { name: true, address: true } },
+      employee: { select: { name: true } },
+      equipment: {
+        include: {
+          equipment: { select: { type: true, brand: true, model: true, location: true } }
+        }
+      }
+    }
+  });
+  return {
+    serviceNumber: service.serviceNumber,
+    serviceType: service.serviceType,
+    scheduledAt: service.scheduledAt,
+    completedDate: service.completedDate,
+    durationMinutes: service.durationMinutes,
+    status: service.status,
+    technicianName: service.employee?.name ?? null,
+    companyId: service.company.id,
+    companyName: service.company.name,
+    companyNiche: service.company.niche,
+    companyLogo: service.company.logoUrl,
+    customerName: service.customer.name,
+    customerAddress: service.customer.address,
+    equipment: service.equipment.map((se) => ({
+      id: se.equipmentId,
+      type: se.equipment.type,
+      brand: se.equipment.brand,
+      model: se.equipment.model,
+      location: se.equipment.location,
+      notes: se.notes
+    })),
+    executionNotes: service.executionNotes,
+    confirmedAt: service.confirmedAt,
+    confirmedName: service.confirmedName,
+    confirmedDocument: service.confirmedDocument,
+    confirmedDocumentType: service.confirmedDocumentType,
+    confirmedIp: service.confirmedIp,
+    confirmedUserAgent: service.confirmedUserAgent
+  };
+}
+
+// src/modules/services/dtos/create-service.dto.ts
+var import_zod25 = require("zod");
+var DEFAULT_DURATION_MINUTES = {
+  PREVENTIVE_MAINTENANCE: 60,
+  CORRECTIVE_MAINTENANCE: 90,
+  PMOC: 180,
+  INSTALLATION: 120,
+  UNINSTALLATION: 60,
+  GAS_RECHARGE: 45,
+  CLEANING: 90,
+  INSPECTION: 30
+};
+var createServiceSchema = import_zod25.z.object({
+  contractId: import_zod25.z.string().uuid().optional(),
+  customerId: import_zod25.z.string().uuid("Cliente \xE9 obrigat\xF3rio"),
+  serviceType: import_zod25.z.string().min(1, "Tipo de servi\xE7o \xE9 obrigat\xF3rio"),
+  scheduledDate: import_zod25.z.string().min(1, "Data agendada \xE9 obrigat\xF3ria"),
+  employeeId: import_zod25.z.string().uuid().optional(),
+  estimatedDurationMinutes: import_zod25.z.number().int().min(1).optional(),
+  equipmentIds: import_zod25.z.array(import_zod25.z.string().uuid()).optional().default([])
+}).strict();
+function getDefaultDuration(serviceType) {
+  return DEFAULT_DURATION_MINUTES[serviceType] ?? 60;
+}
+
 // src/modules/services/services.service.ts
 var import_node_crypto2 = __toESM(require("crypto"), 1);
 var import_promises = __toESM(require("fs/promises"), 1);
 var import_node_path = __toESM(require("path"), 1);
+
+// src/utils/date.ts
+function addMonths(date, months) {
+  const result = new Date(date);
+  const day = result.getDate();
+  result.setMonth(result.getMonth() + months);
+  if (result.getDate() !== day) {
+    result.setDate(0);
+  }
+  return result;
+}
+function calcNextServiceDate(currentDate, frequency) {
+  switch (frequency) {
+    case "MONTHLY":
+      return addMonths(currentDate, 1);
+    case "BIMONTHLY":
+      return addMonths(currentDate, 2);
+    case "QUARTERLY":
+      return addMonths(currentDate, 3);
+    case "SEMIANNUAL":
+      return addMonths(currentDate, 6);
+    case "YEARLY":
+      return addMonths(currentDate, 12);
+    default:
+      return addMonths(currentDate, 1);
+  }
+}
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function endOfDay(date) {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+function startOfMonth(date) {
+  const d = new Date(date);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function endOfMonth(date) {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + 1);
+  d.setDate(0);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+// src/modules/services/services.service.ts
+async function checkScheduleConflict(companyId, employeeId, scheduledAt, estimatedDurationMinutes, excludeServiceId) {
+  const dayStart = startOfDay(scheduledAt);
+  const dayEnd = endOfDay(scheduledAt);
+  const newEnd = new Date(scheduledAt.getTime() + estimatedDurationMinutes * 6e4);
+  const where = {
+    companyId,
+    employeeId,
+    deletedAt: null,
+    status: { notIn: ["CANCELLED", "CONFIRMED"] },
+    scheduledAt: { gte: dayStart, lte: dayEnd }
+  };
+  if (excludeServiceId) {
+    where.id = { not: excludeServiceId };
+  }
+  const existing = await prisma.service.findMany({
+    where,
+    select: {
+      id: true,
+      serviceNumber: true,
+      scheduledAt: true,
+      estimatedDurationMinutes: true,
+      customer: { select: { name: true } }
+    }
+  });
+  const conflicts = [];
+  for (const os of existing) {
+    const osEnd = new Date(os.scheduledAt.getTime() + (os.estimatedDurationMinutes ?? 60) * 6e4);
+    if (scheduledAt < osEnd && newEnd > os.scheduledAt) {
+      conflicts.push({
+        id: os.id,
+        serviceNumber: os.serviceNumber,
+        scheduledAt: os.scheduledAt,
+        estimatedDurationMinutes: os.estimatedDurationMinutes,
+        customerName: os.customer.name
+      });
+    }
+  }
+  return conflicts;
+}
+function formatAddress(address) {
+  if (!address) return "";
+  const parts = [];
+  if (address.street) parts.push(String(address.street));
+  if (address.number) parts.push(String(address.number));
+  if (address.neighborhood) parts.push(String(address.neighborhood));
+  if (address.city) parts.push(String(address.city));
+  if (address.state) parts.push(String(address.state));
+  return parts.join(", ");
+}
+function formatServiceResponse(service) {
+  const customer = service.customer ?? {};
+  const employee = service.employee ?? {};
+  const equipmentIds = (service.equipment ?? []).map((se) => se.equipmentId);
+  const equipmentDetails = (service.equipment ?? []).map((se) => {
+    const eq = se.equipment ?? {};
+    return {
+      id: eq.id,
+      type: eq.type,
+      brand: eq.brand,
+      model: eq.model,
+      location: eq.location,
+      capacity: eq.capacity,
+      status: eq.status
+    };
+  });
+  const photoUrls = (service.photos ?? []).map((p) => p.url);
+  const execution = service.completedDate ? {
+    notes: service.executionNotes ?? "",
+    photoUrls,
+    completedAt: service.completedDate instanceof Date ? service.completedDate.toISOString() : String(service.completedDate)
+  } : void 0;
+  const confirmationStatus = service.confirmedAt ? "CONFIRMED" : "PENDING";
+  const confirmationLink = service.confirmationToken ? `/confirmar/${service.confirmationToken}` : null;
+  return {
+    id: service.id,
+    companyId: service.companyId,
+    contractId: service.contractId ?? "",
+    customerId: service.customerId,
+    customerName: customer.name ?? "",
+    customerAddress: formatAddress(customer.address),
+    customerPhone: customer.phone ?? null,
+    serviceType: service.serviceType ?? "",
+    scheduledDate: service.scheduledAt instanceof Date ? service.scheduledAt.toISOString() : String(service.scheduledAt),
+    employeeId: service.employeeId ?? null,
+    employeeName: employee.name ?? null,
+    status: service.status,
+    equipmentIds,
+    equipmentDetails: equipmentDetails.length > 0 ? equipmentDetails : void 0,
+    execution,
+    reportPdfUrl: service.reportUrl ?? null,
+    confirmationStatus,
+    confirmationToken: service.confirmationToken ?? null,
+    confirmationLink,
+    confirmationExpiresAt: service.confirmationTokenExpiresAt instanceof Date ? service.confirmationTokenExpiresAt.toISOString() : service.confirmationTokenExpiresAt ?? null,
+    confirmedAt: service.confirmedAt instanceof Date ? service.confirmedAt.toISOString() : service.confirmedAt ?? null,
+    confirmedName: service.confirmedName ?? null,
+    confirmedDocument: service.confirmedDocument ?? null,
+    confirmedDocumentType: service.confirmedDocumentType ?? null,
+    estimatedDurationMinutes: service.estimatedDurationMinutes ?? null,
+    durationMinutes: service.durationMinutes ?? null,
+    createdAt: service.createdAt instanceof Date ? service.createdAt.toISOString() : String(service.createdAt),
+    updatedAt: service.updatedAt instanceof Date ? service.updatedAt.toISOString() : String(service.updatedAt)
+  };
+}
+async function create11(companyId, data) {
+  const scheduledAt = new Date(data.scheduledDate);
+  if (isNaN(scheduledAt.getTime())) {
+    throw new AppError("Data agendada inv\xE1lida", 400, "INVALID_DATE");
+  }
+  const customer = await prisma.customer.findFirst({
+    where: { id: data.customerId, companyId, deletedAt: null },
+    select: { id: true }
+  });
+  if (!customer) throw new AppError("Cliente n\xE3o encontrado", 404, "NOT_FOUND");
+  if (data.contractId) {
+    const contract = await prisma.contract.findFirst({
+      where: { id: data.contractId, companyId, deletedAt: null },
+      select: { id: true }
+    });
+    if (!contract) throw new AppError("Contrato n\xE3o encontrado", 404, "NOT_FOUND");
+  }
+  const estimatedDurationMinutes = data.estimatedDurationMinutes ?? getDefaultDuration(data.serviceType);
+  if (data.employeeId) {
+    const conflicts = await checkScheduleConflict(companyId, data.employeeId, scheduledAt, estimatedDurationMinutes);
+    if (conflicts.length > 0) {
+      throw new AppError(
+        `T\xE9cnico j\xE1 possui OS agendada neste hor\xE1rio`,
+        409,
+        "SCHEDULE_CONFLICT",
+        { conflicts }
+      );
+    }
+  }
+  const serviceNumber = await getNextServiceNumber(companyId);
+  const amount = data.contractId ? await prisma.contract.findFirst({
+    where: { id: data.contractId },
+    select: { amount: true }
+  }).then((c) => c?.amount ?? null) : null;
+  const service = await prisma.service.create({
+    data: {
+      serviceNumber,
+      companyId,
+      contractId: data.contractId ?? null,
+      customerId: data.customerId,
+      scheduledAt,
+      estimatedDurationMinutes,
+      status: "SCHEDULED",
+      amount,
+      employeeId: data.employeeId ?? null,
+      serviceType: data.serviceType
+    },
+    include: {
+      customer: { select: { id: true, name: true } },
+      employee: { select: { id: true, name: true } }
+    }
+  });
+  if (data.equipmentIds && data.equipmentIds.length > 0) {
+    await prisma.serviceEquipment.createMany({
+      data: data.equipmentIds.map((equipmentId) => ({
+        serviceId: service.id,
+        equipmentId
+      }))
+    });
+  }
+  await createAuditLog({
+    companyId,
+    entityType: "Service",
+    entityId: service.id,
+    action: "CREATE",
+    newData: { serviceNumber, customerId: data.customerId, serviceType: data.serviceType }
+  });
+  return formatServiceResponse(service);
+}
 async function list11(companyId, filters, query, userRole, userId) {
   const pagination = parsePagination(query);
   const where = { companyId, deletedAt: null };
@@ -2864,7 +3456,10 @@ async function list11(companyId, filters, query, userRole, userId) {
     }),
     prisma.service.count({ where })
   ]);
-  return { data: services, meta: buildMeta(total, pagination) };
+  return {
+    data: services.map(formatServiceResponse),
+    meta: buildMeta(total, pagination)
+  };
 }
 async function getById11(companyId, serviceId, userRole) {
   const service = await prisma.service.findFirst({
@@ -2878,20 +3473,96 @@ async function getById11(companyId, serviceId, userRole) {
   });
   if (!service) throw new AppError("Servi\xE7o n\xE3o encontrado", 404, "NOT_FOUND");
   const customer = service.customer;
+  let masked;
   if (userRole === "TECHNICIAN") {
-    return {
-      ...service,
-      customer: maskCustomerForTechnician(customer)
+    masked = maskCustomerForTechnician(customer);
+  } else {
+    masked = {
+      ...customer,
+      document: customer.document ? maskDocument(customer.document, customer.documentType || "CNPJ") : null
     };
   }
-  return {
-    ...service,
-    customer: {
-      ...customer,
-      document: customer.document ? maskDocument(customer.document, customer.documentType || "CNPJ") : null,
-      email: customer.email ? maskEmail(customer.email) : null
+  return formatServiceResponse({ ...service, customer: masked });
+}
+async function update11(companyId, serviceId, data) {
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, companyId, deletedAt: null }
+  });
+  if (!service) throw new AppError("Servi\xE7o n\xE3o encontrado", 404, "NOT_FOUND");
+  if (service.status !== "SCHEDULED") {
+    throw new AppError("Apenas servi\xE7os agendados podem ser editados", 400, "INVALID_STATUS");
+  }
+  const updateData = {};
+  if (data.customerId !== void 0) {
+    const customer = await prisma.customer.findFirst({
+      where: { id: data.customerId, companyId, deletedAt: null },
+      select: { id: true }
+    });
+    if (!customer) throw new AppError("Cliente n\xE3o encontrado", 404, "NOT_FOUND");
+    updateData.customerId = data.customerId;
+  }
+  if (data.contractId !== void 0) {
+    if (data.contractId) {
+      const contract = await prisma.contract.findFirst({
+        where: { id: data.contractId, companyId, deletedAt: null },
+        select: { id: true, amount: true }
+      });
+      if (!contract) throw new AppError("Contrato n\xE3o encontrado", 404, "NOT_FOUND");
+      updateData.contractId = data.contractId;
+      updateData.amount = contract.amount;
+    } else {
+      updateData.contractId = null;
+      updateData.amount = null;
     }
-  };
+  }
+  if (data.serviceType !== void 0) updateData.serviceType = data.serviceType;
+  if (data.scheduledDate !== void 0) {
+    const scheduledAt = new Date(data.scheduledDate);
+    if (isNaN(scheduledAt.getTime())) {
+      throw new AppError("Data agendada inv\xE1lida", 400, "INVALID_DATE");
+    }
+    updateData.scheduledAt = scheduledAt;
+  }
+  if (data.employeeId !== void 0) updateData.employeeId = data.employeeId;
+  const updated = await prisma.service.update({
+    where: { id: serviceId },
+    data: updateData,
+    include: {
+      customer: true,
+      employee: { select: { id: true, name: true, phone: true } },
+      equipment: { include: { equipment: true } },
+      photos: true
+    }
+  });
+  if (data.equipmentIds !== void 0) {
+    await prisma.serviceEquipment.deleteMany({ where: { serviceId } });
+    if (data.equipmentIds.length > 0) {
+      await prisma.serviceEquipment.createMany({
+        data: data.equipmentIds.map((equipmentId) => ({
+          serviceId,
+          equipmentId
+        }))
+      });
+    }
+  }
+  await createAuditLog({
+    companyId,
+    entityType: "Service",
+    entityId: serviceId,
+    action: "UPDATE",
+    oldData: { status: "SCHEDULED" },
+    newData: { ...updateData }
+  });
+  const final = await prisma.service.findFirst({
+    where: { id: serviceId, companyId, deletedAt: null },
+    include: {
+      customer: true,
+      employee: { select: { id: true, name: true, phone: true } },
+      equipment: { include: { equipment: true } },
+      photos: true
+    }
+  });
+  return formatServiceResponse(final);
 }
 async function start(companyId, serviceId) {
   const service = await prisma.service.findFirst({
@@ -2911,6 +3582,56 @@ async function start(companyId, serviceId) {
     entityId: serviceId,
     action: "START",
     oldData: { status: "SCHEDULED" },
+    newData: { status: "IN_PROGRESS" }
+  });
+  return updated;
+}
+async function revert(companyId, serviceId) {
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, companyId, deletedAt: null }
+  });
+  if (!service) throw new AppError("Servi\xE7o n\xE3o encontrado", 404, "NOT_FOUND");
+  if (service.status !== "IN_PROGRESS") {
+    throw new AppError("Apenas servi\xE7os em andamento podem ser revertidos", 400, "INVALID_STATUS");
+  }
+  const updated = await prisma.service.update({
+    where: { id: serviceId },
+    data: { status: "SCHEDULED" }
+  });
+  await createAuditLog({
+    companyId,
+    entityType: "Service",
+    entityId: serviceId,
+    action: "UPDATE",
+    oldData: { status: "IN_PROGRESS" },
+    newData: { status: "SCHEDULED" }
+  });
+  return updated;
+}
+async function reopen(companyId, serviceId) {
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, companyId, deletedAt: null }
+  });
+  if (!service) throw new AppError("Servi\xE7o n\xE3o encontrado", 404, "NOT_FOUND");
+  if (service.status !== "COMPLETED") {
+    throw new AppError("Apenas servi\xE7os conclu\xEDdos podem ser reabertos", 400, "INVALID_STATUS");
+  }
+  const updated = await prisma.service.update({
+    where: { id: serviceId },
+    data: {
+      status: "IN_PROGRESS",
+      completedDate: null,
+      executionNotes: null,
+      durationMinutes: null,
+      reportUrl: null
+    }
+  });
+  await createAuditLog({
+    companyId,
+    entityType: "Service",
+    entityId: serviceId,
+    action: "UPDATE",
+    oldData: { status: "COMPLETED" },
     newData: { status: "IN_PROGRESS" }
   });
   return updated;
@@ -2948,7 +3669,21 @@ async function complete(companyId, serviceId, data) {
     }
     return updated;
   });
-  return { ...result, confirmationToken, confirmationLink: `/api/confirm/${confirmationToken}` };
+  let reportPdfUrl = null;
+  try {
+    const reportData = await buildServiceReportData(serviceId);
+    const reportUrl = await generateServiceReport(serviceId, reportData);
+    if (reportUrl) {
+      await prisma.service.update({
+        where: { id: serviceId },
+        data: { reportUrl }
+      });
+      reportPdfUrl = reportUrl;
+    }
+  } catch (error) {
+    console.error(`[complete] Falha ao gerar PDF na conclus\xE3o da OS ${serviceId}:`, error);
+  }
+  return { ...result, confirmationToken, confirmationLink: `/confirmar/${confirmationToken}`, reportPdfUrl };
 }
 async function cancel3(companyId, serviceId, data) {
   const service = await prisma.service.findFirst({
@@ -2984,9 +3719,25 @@ async function reschedule(companyId, serviceId, data) {
   if (!["SCHEDULED", "IN_PROGRESS"].includes(service.status)) {
     throw new AppError("Apenas servi\xE7os agendados ou em andamento podem ser reagendados", 400, "INVALID_STATUS");
   }
+  const estimatedDurationMinutes = data.estimatedDurationMinutes ?? service.estimatedDurationMinutes ?? 60;
+  if (service.employeeId) {
+    const conflicts = await checkScheduleConflict(companyId, service.employeeId, newDate, estimatedDurationMinutes, serviceId);
+    if (conflicts.length > 0) {
+      throw new AppError(
+        `T\xE9cnico j\xE1 possui OS agendada neste hor\xE1rio`,
+        409,
+        "SCHEDULE_CONFLICT",
+        { conflicts }
+      );
+    }
+  }
   const updated = await prisma.service.update({
     where: { id: serviceId },
-    data: { scheduledAt: newDate, status: "SCHEDULED" }
+    data: {
+      scheduledAt: newDate,
+      estimatedDurationMinutes,
+      status: "SCHEDULED"
+    }
   });
   await createAuditLog({
     companyId,
@@ -3013,6 +3764,49 @@ async function resendConfirmation(companyId, serviceId) {
     data: { confirmationToken: newToken, confirmationTokenExpiresAt: newExpiry }
   });
   return { ...updated, confirmationToken: newToken };
+}
+async function generatePdf(companyId, serviceId) {
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, companyId, deletedAt: null }
+  });
+  if (!service) throw new AppError("Servi\xE7o n\xE3o encontrado", 404, "NOT_FOUND");
+  if (service.status !== "COMPLETED") {
+    throw new AppError("Apenas servi\xE7os conclu\xEDdos podem gerar PDF", 400, "INVALID_STATUS");
+  }
+  const reportData = await buildServiceReportData(serviceId);
+  const reportUrl = await generateServiceReport(serviceId, reportData);
+  if (!reportUrl) {
+    throw new AppError("Falha ao gerar o PDF. Verifique a configura\xE7\xE3o do storage.", 500, "PDF_GENERATION_FAILED");
+  }
+  await prisma.service.update({
+    where: { id: serviceId },
+    data: { reportUrl }
+  });
+  return { reportPdfUrl: reportUrl };
+}
+async function previewReport(companyId, serviceId, overrides) {
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, companyId, deletedAt: null }
+  });
+  if (!service) throw new AppError("Servi\xE7o n\xE3o encontrado", 404, "NOT_FOUND");
+  const reportData = await buildServiceReportData(serviceId);
+  if (overrides) {
+    if (overrides.executionNotes !== void 0) {
+      reportData.executionNotes = overrides.executionNotes;
+    }
+    if (overrides.durationMinutes !== void 0) {
+      reportData.durationMinutes = overrides.durationMinutes;
+    }
+    if (overrides.equipmentNotes && overrides.equipmentNotes.length > 0) {
+      for (const eq of overrides.equipmentNotes) {
+        const target = reportData.equipment.find((e) => e.id === eq.equipmentId);
+        if (target) {
+          target.notes = eq.note;
+        }
+      }
+    }
+  }
+  return generateServiceReportBuffer(serviceId, reportData);
 }
 async function getReport(companyId, serviceId) {
   const service = await prisma.service.findFirst({
@@ -3102,49 +3896,67 @@ async function linkEquipment(companyId, serviceId, equipmentIds) {
 }
 
 // src/modules/services/dtos/complete-service.dto.ts
-var import_zod25 = require("zod");
-var equipmentNoteSchema = import_zod25.z.object({
-  equipmentId: import_zod25.z.string().uuid(),
-  note: import_zod25.z.string().max(500)
+var import_zod26 = require("zod");
+var equipmentNoteSchema = import_zod26.z.object({
+  equipmentId: import_zod26.z.string().uuid(),
+  note: import_zod26.z.string().max(500)
 });
-var completeServiceSchema = import_zod25.z.object({
-  executionNotes: import_zod25.z.string().min(1, "Observa\xE7\xF5es s\xE3o obrigat\xF3rias").max(2e3).optional(),
-  durationMinutes: import_zod25.z.number().int().positive().optional(),
-  equipmentNotes: import_zod25.z.array(equipmentNoteSchema).optional()
+var completeServiceSchema = import_zod26.z.object({
+  executionNotes: import_zod26.z.string().min(1, "Observa\xE7\xF5es s\xE3o obrigat\xF3rias").max(2e3).optional(),
+  durationMinutes: import_zod26.z.number().int().positive().optional(),
+  equipmentNotes: import_zod26.z.array(equipmentNoteSchema).optional()
 }).strict();
 
 // src/modules/services/dtos/cancel-service.dto.ts
-var import_zod26 = require("zod");
-var cancelServiceSchema = import_zod26.z.object({
-  reason: import_zod26.z.string().min(1, "Motivo do cancelamento \xE9 obrigat\xF3rio").max(500)
+var import_zod27 = require("zod");
+var cancelServiceSchema = import_zod27.z.object({
+  reason: import_zod27.z.string().min(1, "Motivo do cancelamento \xE9 obrigat\xF3rio").max(500)
 }).strict();
 
 // src/modules/services/dtos/reschedule-service.dto.ts
-var import_zod27 = require("zod");
-var rescheduleServiceSchema = import_zod27.z.object({
-  scheduledAt: import_zod27.z.string().min(1, "Nova data \xE9 obrigat\xF3ria")
+var import_zod28 = require("zod");
+var rescheduleServiceSchema = import_zod28.z.object({
+  scheduledAt: import_zod28.z.string().min(1, "Nova data \xE9 obrigat\xF3ria"),
+  estimatedDurationMinutes: import_zod28.z.number().int().min(1).optional()
 }).strict();
 
 // src/modules/services/dtos/service-filters.dto.ts
-var import_zod28 = require("zod");
-var serviceFiltersSchema = import_zod28.z.object({
-  page: import_zod28.z.coerce.number().int().positive().optional(),
-  pageSize: import_zod28.z.coerce.number().int().min(1).max(100).optional(),
-  status: import_zod28.z.enum(["SCHEDULED", "IN_PROGRESS", "COMPLETED", "CONFIRMED", "CANCELLED"]).optional(),
-  employeeId: import_zod28.z.string().uuid().optional(),
-  customerId: import_zod28.z.string().uuid().optional(),
-  contractId: import_zod28.z.string().uuid().optional(),
-  dateStart: import_zod28.z.string().optional(),
-  dateEnd: import_zod28.z.string().optional()
+var import_zod29 = require("zod");
+var serviceFiltersSchema = import_zod29.z.object({
+  page: import_zod29.z.coerce.number().int().positive().optional(),
+  pageSize: import_zod29.z.coerce.number().int().min(1).max(100).optional(),
+  status: import_zod29.z.enum(["SCHEDULED", "IN_PROGRESS", "COMPLETED", "CONFIRMED", "CANCELLED"]).optional(),
+  employeeId: import_zod29.z.string().uuid().optional(),
+  customerId: import_zod29.z.string().uuid().optional(),
+  contractId: import_zod29.z.string().uuid().optional(),
+  dateStart: import_zod29.z.string().optional(),
+  dateEnd: import_zod29.z.string().optional()
 }).strict();
 
 // src/modules/services/dtos/link-equipment.dto.ts
-var import_zod29 = require("zod");
-var linkEquipmentSchema = import_zod29.z.object({
-  equipmentIds: import_zod29.z.array(import_zod29.z.string().uuid()).min(1, "Selecione pelo menos um equipamento")
+var import_zod30 = require("zod");
+var linkEquipmentSchema = import_zod30.z.object({
+  equipmentIds: import_zod30.z.array(import_zod30.z.string().uuid()).min(1, "Selecione pelo menos um equipamento")
+}).strict();
+
+// src/modules/services/dtos/update-service.dto.ts
+var import_zod31 = require("zod");
+var updateServiceSchema = import_zod31.z.object({
+  contractId: import_zod31.z.string().min(1).optional(),
+  customerId: import_zod31.z.string().min(1).optional(),
+  serviceType: import_zod31.z.string().min(1).optional(),
+  scheduledDate: import_zod31.z.string().min(1).optional(),
+  employeeId: import_zod31.z.string().nullable().optional(),
+  equipmentIds: import_zod31.z.array(import_zod31.z.string()).optional()
 }).strict();
 
 // src/modules/services/services.controller.ts
+async function create12(request, reply) {
+  const user = request.user;
+  const body = validateOrThrow(createServiceSchema, request.body);
+  const service = await create11(user.companyId, body);
+  return reply.status(201).send({ data: service });
+}
 async function list12(request, reply) {
   const user = request.user;
   const query = validateOrThrow(serviceFiltersSchema, request.query);
@@ -3176,6 +3988,18 @@ async function start2(request, reply) {
   const updated = await start(user.companyId, id);
   return reply.status(200).send({ data: updated });
 }
+async function revert2(request, reply) {
+  const user = request.user;
+  const { id } = request.params;
+  const updated = await revert(user.companyId, id);
+  return reply.status(200).send({ data: updated });
+}
+async function reopen2(request, reply) {
+  const user = request.user;
+  const { id } = request.params;
+  const updated = await reopen(user.companyId, id);
+  return reply.status(200).send({ data: updated });
+}
 async function complete2(request, reply) {
   const user = request.user;
   const { id } = request.params;
@@ -3203,6 +4027,19 @@ async function resendConfirmation2(request, reply) {
   const result = await resendConfirmation(user.companyId, id);
   return reply.status(200).send({ data: result });
 }
+async function previewReport2(request, reply) {
+  const user = request.user;
+  const { id } = request.params;
+  const body = request.body;
+  const buffer = await previewReport(user.companyId, id, body);
+  return reply.header("Content-Type", "application/pdf").send(buffer);
+}
+async function generatePdf2(request, reply) {
+  const user = request.user;
+  const { id } = request.params;
+  const result = await generatePdf(user.companyId, id);
+  return reply.status(200).send({ data: result });
+}
 async function getReport2(request, reply) {
   const user = request.user;
   const { id } = request.params;
@@ -3222,6 +4059,13 @@ async function removePhoto2(request, reply) {
   await removePhoto(user.companyId, id, photoId);
   return reply.status(204).send();
 }
+async function update12(request, reply) {
+  const user = request.user;
+  const { id } = request.params;
+  const body = validateOrThrow(updateServiceSchema, request.body);
+  const updated = await update11(user.companyId, id, body);
+  return reply.status(200).send({ data: updated });
+}
 async function linkEquipment2(request, reply) {
   const user = request.user;
   const { id } = request.params;
@@ -3232,6 +4076,11 @@ async function linkEquipment2(request, reply) {
 
 // src/modules/services/services.routes.ts
 async function servicesRoutes(app2) {
+  app2.post(
+    "/",
+    { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN")] },
+    create12
+  );
   app2.get(
     "/",
     { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
@@ -3246,6 +4095,16 @@ async function servicesRoutes(app2) {
     "/:id/start",
     { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
     start2
+  );
+  app2.patch(
+    "/:id/revert",
+    { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN")] },
+    revert2
+  );
+  app2.patch(
+    "/:id/reopen",
+    { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN")] },
+    reopen2
   );
   app2.patch(
     "/:id/complete",
@@ -3267,10 +4126,20 @@ async function servicesRoutes(app2) {
     { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN")] },
     resendConfirmation2
   );
+  app2.post(
+    "/:id/preview-report",
+    { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
+    previewReport2
+  );
   app2.get(
     "/:id/report",
     { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN")] },
     getReport2
+  );
+  app2.post(
+    "/:id/generate-pdf",
+    { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN")] },
+    generatePdf2
   );
   app2.post(
     "/:id/photos",
@@ -3281,6 +4150,11 @@ async function servicesRoutes(app2) {
     "/:id/photos/:photoId",
     { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN")] },
     removePhoto2
+  );
+  app2.patch(
+    "/:id",
+    { preHandler: [app2.authenticate, authorize("OWNER", "ADMIN")] },
+    update12
   );
   app2.patch(
     "/:id/equipment",
@@ -3345,7 +4219,7 @@ async function getConfirmationData(token) {
     }))
   };
 }
-async function confirm(token, ip, userAgent) {
+async function confirm(token, ip, userAgent, name, document, documentType) {
   const service = await prisma.service.findUnique({
     where: { confirmationToken: token },
     select: {
@@ -3374,6 +4248,9 @@ async function confirm(token, ip, userAgent) {
         confirmedAt: now,
         confirmedIp: anonymizeIp(ip),
         confirmedUserAgent: userAgent,
+        confirmedName: name,
+        confirmedDocument: document ?? null,
+        confirmedDocumentType: documentType ?? null,
         confirmationToken: null,
         confirmationTokenExpiresAt: null
       }
@@ -3385,12 +4262,36 @@ async function confirm(token, ip, userAgent) {
       action: "CONFIRM"
     });
   });
+  try {
+    const reportData = await buildServiceReportData(service.id);
+    const reportUrl = await generateServiceReport(service.id, reportData);
+    if (reportUrl) {
+      await prisma.service.update({
+        where: { id: service.id },
+        data: { reportUrl }
+      });
+    }
+  } catch (error) {
+    console.error(`[confirm] Falha ao regenerar PDF na confirma\xE7\xE3o da OS ${service.id}:`, error);
+  }
   return {
     success: true,
     serviceNumber: service.serviceNumber,
     confirmedAt: now
   };
 }
+
+// src/modules/confirm/confirm.schema.ts
+var import_zod32 = require("zod");
+var confirmParamsSchema = import_zod32.z.object({
+  token: import_zod32.z.string()
+});
+var confirmBodySchema = import_zod32.z.object({
+  name: import_zod32.z.string().max(255).optional().default(""),
+  document: import_zod32.z.string().regex(/^\d+$/, "Documento deve conter apenas n\xFAmeros").min(11, "Documento deve ter no m\xEDnimo 11 d\xEDgitos").max(14, "Documento deve ter no m\xE1ximo 14 d\xEDgitos").optional(),
+  documentType: import_zod32.z.enum(["CPF", "CNPJ"]).optional(),
+  consent: import_zod32.z.boolean().optional().default(true).refine((v) => v === true, { message: "Consentimento \xE9 obrigat\xF3rio" })
+});
 
 // src/modules/confirm/confirm.controller.ts
 async function getConfirmation(request, reply) {
@@ -3402,7 +4303,8 @@ async function confirmServiceHandler(request, reply) {
   const { token } = request.params;
   const ip = request.ip;
   const userAgent = request.headers["user-agent"] ?? "";
-  const result = await confirm(token, ip, userAgent);
+  const { name, document, documentType } = confirmBodySchema.parse(request.body ?? {});
+  const result = await confirm(token, ip, userAgent, name, document, documentType);
   return reply.status(200).send(result);
 }
 
@@ -3422,56 +4324,6 @@ async function confirmRoutes(app2) {
     },
     confirmServiceHandler
   );
-}
-
-// src/utils/date.ts
-function addMonths(date, months) {
-  const result = new Date(date);
-  const day = result.getDate();
-  result.setMonth(result.getMonth() + months);
-  if (result.getDate() !== day) {
-    result.setDate(0);
-  }
-  return result;
-}
-function calcNextServiceDate(currentDate, frequency) {
-  switch (frequency) {
-    case "MONTHLY":
-      return addMonths(currentDate, 1);
-    case "BIMONTHLY":
-      return addMonths(currentDate, 2);
-    case "QUARTERLY":
-      return addMonths(currentDate, 3);
-    case "SEMIANNUAL":
-      return addMonths(currentDate, 6);
-    case "YEARLY":
-      return addMonths(currentDate, 12);
-    default:
-      return addMonths(currentDate, 1);
-  }
-}
-function startOfDay(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-function endOfDay(date) {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-function startOfMonth(date) {
-  const d = new Date(date);
-  d.setDate(1);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-function endOfMonth(date) {
-  const d = new Date(date);
-  d.setMonth(d.getMonth() + 1);
-  d.setDate(0);
-  d.setHours(23, 59, 59, 999);
-  return d;
 }
 
 // src/modules/dashboard/dashboard.service.ts
@@ -3513,8 +4365,8 @@ async function getSummary(companyId) {
     prisma.employee.count({ where: { companyId, deletedAt: null, isActive: true } }),
     prisma.contract.aggregate({ where: { companyId, deletedAt: null, status: "ACTIVE" }, _sum: { amount: true } }),
     prisma.service.count({ where: { companyId, deletedAt: null, scheduledAt: { gte: todayStart, lte: todayEnd } } }),
-    prisma.service.count({ where: { companyId, deletedAt: null, status: "COMPLETED", completedDate: { gte: monthStart, lte: monthEnd } } }),
-    prisma.service.count({ where: { companyId, deletedAt: null, status: "COMPLETED", confirmedAt: { not: null }, completedDate: { gte: monthStart, lte: monthEnd } } }),
+    prisma.service.count({ where: { companyId, deletedAt: null, status: { in: ["COMPLETED", "CONFIRMED"] }, completedDate: { gte: monthStart, lte: monthEnd } } }),
+    prisma.service.count({ where: { companyId, deletedAt: null, confirmedAt: { not: null }, completedDate: { gte: monthStart, lte: monthEnd } } }),
     prisma.$queryRaw`
       SELECT AVG(
         EXTRACT(EPOCH FROM (s.completed_date - s.scheduled_at)) / 3600
@@ -3522,7 +4374,7 @@ async function getSummary(companyId) {
       FROM services s
       WHERE s.company_id = ${companyId}
         AND s.deleted_at IS NULL
-        AND s.status = 'COMPLETED'
+        AND s.status IN ('COMPLETED', 'CONFIRMED')
         AND s.completed_date IS NOT NULL
         AND s.scheduled_at IS NOT NULL
     `
@@ -3592,18 +4444,29 @@ async function getExpiringContracts(companyId) {
   const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1e3);
   const contracts = await prisma.contract.findMany({
     where: { companyId, deletedAt: null, status: "ACTIVE", endDate: { gte: now, lte: thirtyDaysFromNow } },
-    include: { customer: { select: { id: true, name: true } } },
+    include: {
+      customer: { select: { id: true, name: true } },
+      services: {
+        where: { deletedAt: null },
+        orderBy: { scheduledAt: "desc" },
+        take: 1,
+        select: { serviceType: true }
+      }
+    },
     orderBy: { endDate: "asc" }
   });
-  return contracts.map((c) => ({
-    id: c.id,
-    customerId: c.customerId,
-    customerName: c.customer.name,
-    serviceType: c.serviceType ?? "MAINTENANCE",
-    expiresAt: c.endDate.toISOString(),
-    daysRemaining: Math.ceil((c.endDate.getTime() - now.getTime()) / (1e3 * 60 * 60 * 24)),
-    value: Number(c.amount)
-  }));
+  return contracts.map((c) => {
+    const lastService = c.services?.[0];
+    return {
+      id: c.id,
+      customerId: c.customerId,
+      customerName: c.customer.name,
+      serviceType: lastService?.serviceType ?? "MAINTENANCE",
+      expiresAt: c.endDate.toISOString(),
+      daysRemaining: Math.ceil((c.endDate.getTime() - now.getTime()) / (1e3 * 60 * 60 * 24)),
+      value: Number(c.amount)
+    };
+  });
 }
 async function getRecentActivity(companyId) {
   const logs = await prisma.auditLog.findMany({
@@ -3648,7 +4511,7 @@ async function getTechnicianStatus(companyId) {
   return employees.map((emp) => {
     const todayServices = emp.services;
     const servicesToday = todayServices.length;
-    const completedToday = todayServices.filter((s) => s.status === "COMPLETED").length;
+    const completedToday = todayServices.filter((s) => s.status === "COMPLETED" || s.status === "CONFIRMED").length;
     const currentService = todayServices.find((s) => s.status === "IN_PROGRESS") ?? null;
     let status;
     if (!emp.isActive) {
@@ -3679,7 +4542,7 @@ async function getMonthlyRevenue(companyId) {
     FROM services s
     WHERE s.company_id = ${companyId}
       AND s.deleted_at IS NULL
-      AND s.status = 'COMPLETED'
+      AND s.status IN ('COMPLETED', 'CONFIRMED')
       AND s.completed_date >= ${startOfMonth(new Date(now.getFullYear(), now.getMonth() - 11, 1))}
     GROUP BY DATE_TRUNC('month', s.completed_date)
     ORDER BY month ASC
@@ -3892,7 +4755,10 @@ async function getConsent2(request, reply) {
 async function lgpdRoutes(app2) {
   app2.get(
     "/lgpd/export",
-    { preHandler: [app2.authenticate] },
+    {
+      preHandler: [app2.authenticate],
+      config: { rateLimit: { max: 1, timeWindow: 864e5 } }
+    },
     exportData2
   );
   app2.post(
@@ -4057,6 +4923,39 @@ async function cleanupTokensJob() {
   console.log(`[cleanup] Tokens expirados limpos: ${expiredTokens.count}, IPs anonimizados: ${anonymizedIps.count}`);
 }
 
+// src/jobs/cleanup-deleted.job.ts
+async function cleanupDeletedJob() {
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1e3);
+  const where = { deletedAt: { lt: ninetyDaysAgo } };
+  const results = {};
+  const photos = await prisma.servicePhoto.deleteMany({
+    where: {
+      service: { deletedAt: { lt: ninetyDaysAgo } }
+    }
+  });
+  results.ServicePhoto = photos.count;
+  const serviceEquipment = await prisma.serviceEquipment.deleteMany({
+    where: {
+      service: { deletedAt: { lt: ninetyDaysAgo } }
+    }
+  });
+  results.ServiceEquipment = serviceEquipment.count;
+  const services = await prisma.service.deleteMany({ where });
+  results.Service = services.count;
+  const equipment = await prisma.equipment.deleteMany({ where });
+  results.Equipment = equipment.count;
+  const contracts = await prisma.contract.deleteMany({ where });
+  results.Contract = contracts.count;
+  const customers = await prisma.customer.deleteMany({ where });
+  results.Customer = customers.count;
+  const employees = await prisma.employee.deleteMany({ where });
+  results.Employee = employees.count;
+  const users = await prisma.user.deleteMany({ where });
+  results.User = users.count;
+  const counts = Object.entries(results).filter(([, count]) => count > 0).map(([entity, count]) => `${entity}: ${count}`).join(", ");
+  console.log(`[cleanup-deleted] ${counts || "Nenhum registro removido"}`);
+}
+
 // src/jobs/index.ts
 function registerJobs() {
   import_node_cron.default.schedule("1 0 * * *", () => {
@@ -4067,6 +4966,9 @@ function registerJobs() {
   });
   import_node_cron.default.schedule("0 2 * * *", () => {
     cleanupTokensJob().catch((err) => console.error("[cleanup-tokens] Erro:", err));
+  });
+  import_node_cron.default.schedule("0 3 * * *", () => {
+    cleanupDeletedJob().catch((err) => console.error("[cleanup-deleted] Erro:", err));
   });
 }
 

@@ -5,6 +5,7 @@ import * as authService from "./auth.service";
 import { validateOrThrow } from "../../lib/validate";
 import { loginSchema } from "./dtos/login.dto";
 import { changePasswordSchema } from "./dtos/change-password.dto";
+import { registerSchema } from "./dtos/register.dto";
 import { forgotPasswordSchema } from "./dtos/forgot-password.dto";
 import { resetPasswordSchema } from "./dtos/reset-password.dto";
 
@@ -32,10 +33,46 @@ function mapUser(user: {
     companyName: user.company?.name ?? "",
     niche: user.company?.niche ?? null,
     avatarUrl: user.company?.logoUrl ?? null,
+    logoUrl: user.company?.logoUrl ?? null,
     isActive: user.isActive,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
+}
+
+export async function register(request: FastifyRequest, reply: FastifyReply) {
+  const { name, email, password, companyName } = validateOrThrow(registerSchema, request.body);
+
+  const result = await authService.register(name, email, password, companyName);
+
+  const jwt = await reply.jwtSign({
+    sub: result.user.id,
+    companyId: result.user.companyId,
+    role: result.user.role,
+  });
+
+  reply.setCookie(COOKIE_NAME, jwt, {
+    ...cookieOptions,
+    maxAge: env.JWT_EXPIRES_IN,
+  });
+
+  reply.setCookie("refresh_token", result.refreshToken, {
+    ...cookieOptions,
+    maxAge: env.REFRESH_TOKEN_EXPIRES_IN,
+    path: "/auth/refresh",
+  });
+
+  const user = await prisma.user.findUnique({
+    where: { id: result.user.id },
+    include: { company: true },
+  });
+
+  return reply.status(201).send({
+    data: {
+      user: user ? mapUser(user as never) : null,
+      accessToken: jwt,
+    },
+  });
 }
 
 export async function login(request: FastifyRequest, reply: FastifyReply) {

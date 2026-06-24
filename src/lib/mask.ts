@@ -1,7 +1,7 @@
 export function maskCpf(cpf: string): string {
   const digits = cpf.replace(/\D/g, "");
   if (digits.length !== 11) return "***.***.***-**";
-  return `***.***.***-${digits.slice(-2)}`;
+  return `${digits.slice(0, 3)}.***.***-${digits.slice(-2)}`;
 }
 
 export function maskCnpj(cnpj: string): string {

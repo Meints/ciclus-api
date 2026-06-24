@@ -7,6 +7,7 @@ import { rescheduleServiceSchema } from "./dtos/reschedule-service.dto";
 import { serviceFiltersSchema } from "./dtos/service-filters.dto";
 import { linkEquipmentSchema } from "./dtos/link-equipment.dto";
 import { createServiceSchema } from "./dtos/create-service.dto";
+import { updateServiceSchema } from "./dtos/update-service.dto";
 
 export async function create(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string };
@@ -94,6 +95,14 @@ export async function resendConfirmation(request: FastifyRequest, reply: Fastify
   return reply.status(200).send({ data: result });
 }
 
+export async function previewReport(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string };
+  const { id } = request.params as { id: string };
+  const body = request.body as { executionNotes?: string; durationMinutes?: number; equipmentNotes?: Array<{ equipmentId: string; note: string }> } | undefined;
+  const buffer = await servicesService.previewReport(user.companyId, id, body);
+  return reply.header("Content-Type", "application/pdf").send(buffer);
+}
+
 export async function generatePdf(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string };
   const { id } = request.params as { id: string };
@@ -121,6 +130,14 @@ export async function removePhoto(request: FastifyRequest, reply: FastifyReply) 
   const { id, photoId } = request.params as { id: string; photoId: string };
   await servicesService.removePhoto(user.companyId, id, photoId);
   return reply.status(204).send();
+}
+
+export async function update(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string };
+  const { id } = request.params as { id: string };
+  const body = validateOrThrow(updateServiceSchema, request.body);
+  const updated = await servicesService.update(user.companyId, id, body);
+  return reply.status(200).send({ data: updated });
 }
 
 export async function linkEquipment(request: FastifyRequest, reply: FastifyReply) {

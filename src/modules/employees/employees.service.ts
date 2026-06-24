@@ -2,6 +2,7 @@ import { prisma } from "../../config/prisma";
 import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
 import { parsePagination, buildSkip, buildMeta } from "../../utils/pagination";
+import { checkEmployeeLimit } from "../company/plan-limits";
 
 export async function list(companyId: string, filters: { isActive?: string }, query: { page?: string; pageSize?: string }) {
   const pagination = parsePagination(query);
@@ -50,6 +51,8 @@ export async function list(companyId: string, filters: { isActive?: string }, qu
 }
 
 export async function create(companyId: string, data: { name: string; email?: string; phone?: string }) {
+  await checkEmployeeLimit(companyId);
+
   const employee = await prisma.employee.create({
     data: {
       companyId,
@@ -189,6 +192,45 @@ export async function getServices(companyId: string, employeeId: string, filters
   ]);
 
   return { data: services, meta: buildMeta(total, pagination) };
+}
+
+export async function getAvailability(companyId: string, employeeId: string, date?: string, _duration?: number) {
+  const targetDate = date ? new Date(date) : new Date();
+  if (isNaN(targetDate.getTime())) {
+    throw new AppError("Data inválida", 400, "INVALID_DATE");
+  }
+
+  const dayStart = new Date(targetDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(targetDate);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  const services = await prisma.service.findMany({
+    where: {
+      companyId,
+      employeeId,
+      deletedAt: null,
+      status: { notIn: ["CANCELLED", "CONFIRMED"] },
+      scheduledAt: { gte: dayStart, lte: dayEnd },
+    },
+    include: {
+      customer: { select: { name: true } },
+    },
+    orderBy: { scheduledAt: "asc" },
+  });
+
+  return services.map((s) => {
+    const duration = s.estimatedDurationMinutes ?? s.durationMinutes ?? 60;
+    const start = s.scheduledAt;
+    const end = new Date(start.getTime() + duration * 60000);
+    return {
+      start: start.toISOString(),
+      end: end.toISOString(),
+      serviceId: s.id,
+      serviceNumber: s.serviceNumber,
+      customerName: s.customer.name,
+    };
+  });
 }
 
 export async function getMonthlyServiceCount(companyId: string) {

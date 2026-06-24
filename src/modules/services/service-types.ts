@@ -1,0 +1,53 @@
+export const SERVICE_TYPES_BY_NICHE = {
+  AIR_CONDITIONING: [
+    "PREVENTIVE_MAINTENANCE",
+    "CORRECTIVE_MAINTENANCE",
+    "INSTALLATION",
+    "UNINSTALLATION",
+    "GAS_RECHARGE",
+    "CLEANING",
+    "PMOC",
+    "INSPECTION",
+  ],
+  PEST_CONTROL: [
+    "COCKROACH_CONTROL",
+    "RODENT_CONTROL",
+    "TERMITE_CONTROL",
+    "BED_BUG_CONTROL",
+    "MOSQUITO_CONTROL",
+    "GENERAL_DISINFECTION",
+    "SANITIZATION",
+    "INSPECTION",
+  ],
+  WATER_TANK: [
+    "CLEANING",
+    "INSPECTION",
+    "DISINFECTION",
+    "REPAIR",
+  ],
+  BUILDING_MAINTENANCE: [
+    "ELECTRICAL",
+    "HYDRAULIC",
+    "PAINTING",
+    "CLEANING",
+    "GARDEN",
+    "INSPECTION",
+  ],
+  ELEVATOR: [
+    "PREVENTIVE_MAINTENANCE",
+    "CORRECTIVE_MAINTENANCE",
+    "INSPECTION",
+    "MODERNIZATION",
+  ],
+  GENERAL: [
+    "SERVICE",
+    "INSPECTION",
+    "MAINTENANCE",
+    "INSTALLATION",
+  ],
+};
+
+export function isValidServiceTypeForNiche(serviceType: string, niche: string): boolean {
+  const types = SERVICE_TYPES_BY_NICHE[niche as keyof typeof SERVICE_TYPES_BY_NICHE] ?? SERVICE_TYPES_BY_NICHE.GENERAL;
+  return types.includes(serviceType);
+}

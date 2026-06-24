@@ -141,6 +141,7 @@ model Service {
   isPaid                     Boolean            @default(false) @map("is_paid")
   employeeId                 String?            @map("employee_id")
   notes                      String?
+  estimatedDurationMinutes   Int?               @map("estimated_duration_minutes")
   durationMinutes            Int?               @map("duration_minutes")
   createdAt                  DateTime           @default(now()) @map("created_at")
   updatedAt                  DateTime           @updatedAt @map("updated_at")
@@ -153,6 +154,9 @@ model Service {
   confirmedAt                DateTime?          @map("confirmed_at")
   confirmedIp                String?            @map("confirmed_ip")
   confirmedUserAgent         String?            @map("confirmed_user_agent")
+  confirmedName              String?            @map("confirmed_name")
+  confirmedDocument          String?            @map("confirmed_document")
+  confirmedDocumentType      String?            @map("confirmed_document_type")
   cancelledReason            String?            @map("cancelled_reason")
   equipment                  ServiceEquipment[]
   photos                     ServicePhoto[]

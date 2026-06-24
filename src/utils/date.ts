@@ -34,6 +34,31 @@ export function daysUntil(date: Date): number {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
+export function parseDateOnly(value: string): Date {
+  const parts = value.split("-");
+  if (parts.length !== 3) throw new Error(`Invalid date format: ${value}`);
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
+    throw new Error(`Invalid date format: ${value}`);
+  }
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+}
+
+export function parseDateTime(dateValue: string, timeValue?: string | null): Date {
+  const date = parseDateOnly(dateValue);
+  if (timeValue) {
+    const parts = timeValue.split(":");
+    const hours = Number(parts[0]);
+    const minutes = Number(parts[1]);
+    if (!isNaN(hours) && !isNaN(minutes)) {
+      date.setUTCHours(hours, minutes, 0, 0);
+    }
+  }
+  return date;
+}
+
 export function startOfDay(date: Date): Date {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);

@@ -2,7 +2,10 @@ import { prisma } from "../../config/prisma";
 import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
 import { parsePagination, buildSkip, buildMeta } from "../../utils/pagination";
-import { getNextServiceNumberInTx } from "../../utils/service-number";
+import { getNextServiceNumber } from "../../utils/service-number";
+import { parseDateOnly } from "../../utils/date";
+import { checkContractLimit } from "../company/plan-limits";
+
 import type { ContractFrequency } from "../../../generated/prisma/enums";
 
 export async function list(
@@ -87,8 +90,10 @@ export async function create(
 
   if (!customer) throw new AppError("Cliente não encontrado", 404, "NOT_FOUND");
 
-  const startDate = new Date(data.startDate);
-  const endDate = new Date(data.endDate);
+  await checkContractLimit(companyId);
+
+  const startDate = parseDateOnly(data.startDate);
+  const endDate = parseDateOnly(data.endDate);
 
   if (startDate >= endDate) {
     throw new AppError("Data de início deve ser anterior à data de término", 400, "INVALID_DATES");
@@ -108,36 +113,37 @@ export async function create(
       },
     });
 
-    const serviceNumber = await getNextServiceNumberInTx(tx, companyId);
+    const serviceNumber = await getNextServiceNumber(companyId);
 
-    const service = await tx.service.create({
+    await tx.service.create({
       data: {
         serviceNumber,
         companyId,
         contractId: contract.id,
         customerId: data.customerId,
+        serviceType: null,
         scheduledAt: startDate,
         status: "SCHEDULED",
         amount: data.amount,
         employeeId: data.employeeId ?? null,
+        estimatedDurationMinutes: 60,
       },
     });
 
-    return { contract, service };
+    return contract;
   });
 
   await createAuditLog({
-    companyId, userId, entityType: "Contract", entityId: result.contract.id, action: "CREATE",
-    newData: { customerId: result.contract.customerId, frequency: result.contract.frequency, amount: result.contract.amount.toString() } as Record<string, unknown>,
+    companyId, userId, entityType: "Contract", entityId: result.id, action: "CREATE",
+    newData: { customerId: result.customerId, frequency: result.frequency, amount: result.amount.toString() } as Record<string, unknown>,
   });
 
-  const { customer: _, ...rest } = result.contract as any;
+  const { customer: _, ...rest } = result as any;
   return {
     ...rest,
     customerName: "",
     nextVisitDate: rest.nextServiceDate ?? null,
     value: Number(rest.amount),
-    serviceId: result.service.id,
   };
 }
 

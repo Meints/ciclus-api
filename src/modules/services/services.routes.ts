@@ -63,6 +63,12 @@ export async function servicesRoutes(app: FastifyInstance) {
     servicesController.resendConfirmation,
   );
 
+  app.post(
+    "/:id/preview-report",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
+    servicesController.previewReport,
+  );
+
   app.get(
     "/:id/report",
     { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
@@ -85,6 +91,12 @@ export async function servicesRoutes(app: FastifyInstance) {
     "/:id/photos/:photoId",
     { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
     servicesController.removePhoto,
+  );
+
+  app.patch(
+    "/:id",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    servicesController.update,
   );
 
   app.patch(

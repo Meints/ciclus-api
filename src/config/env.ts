@@ -16,7 +16,7 @@ export const env = createEnv({
       .string()
       .min(32, "JWT_SECRET deve ter pelo menos 32 caracteres"),
 
-    JWT_EXPIRES_IN: z.coerce.number().default(60 * 60 * 24), // 1 dia
+    JWT_EXPIRES_IN: z.coerce.number().default(60 * 60 * 24 * 7), // 7 dias
 
     COOKIE_SECRET: z
       .string()
@@ -51,6 +51,8 @@ export const env = createEnv({
       .optional(),
 
     REFRESH_TOKEN_EXPIRES_IN: z.coerce.number().default(60 * 60 * 24 * 30), // 30 dias
+
+    CHROME_PATH: z.string().default("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"),
   },
 
   runtimeEnv: process.env,

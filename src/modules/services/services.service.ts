@@ -1,14 +1,68 @@
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
-import { maskCustomerForTechnician, maskDocument, maskEmail, type CustomerRaw } from "../../lib/mask";
+import { maskCustomerForTechnician, maskDocument, type CustomerRaw } from "../../lib/mask";
 import { parsePagination, buildSkip, buildMeta } from "../../utils/pagination";
 import { getNextServiceNumber } from "../../utils/service-number";
-import { generateServiceReport } from "../../integrations/pdf/pdf.service";
+import { parseDateOnly, parseDateTime } from "../../utils/date";
+import { generateServiceReport, generateServiceReportBuffer } from "../../integrations/pdf/pdf.service";
+import { buildServiceReportData } from "./services.helpers";
+import { getDefaultDuration } from "./dtos/create-service.dto";
+import { isValidServiceTypeForNiche } from "./service-types";
+import { checkMonthlyServiceLimit } from "../company/plan-limits";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "../../config/env";
+
+
+async function checkScheduleConflict(
+  companyId: string,
+  employeeId: string,
+  scheduledAt: Date,
+  estimatedDurationMinutes: number,
+  excludeServiceId?: string,
+): Promise<Array<{ id: string; serviceNumber: number; scheduledAt: Date; estimatedDurationMinutes: number | null; customerName: string }>> {
+  const dayStart = new Date(scheduledAt);
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const dayEnd = new Date(scheduledAt);
+  dayEnd.setUTCHours(23, 59, 59, 999);
+
+  const newStart = scheduledAt.getTime();
+  const newEnd = newStart + estimatedDurationMinutes * 60 * 1000;
+
+  const existingServices = await prisma.service.findMany({
+    where: {
+      companyId,
+      employeeId,
+      deletedAt: null,
+      scheduledAt: { gte: dayStart, lte: dayEnd },
+      status: { in: ["SCHEDULED", "IN_PROGRESS"] },
+      ...(excludeServiceId ? { id: { not: excludeServiceId } } : {}),
+    },
+    select: {
+      id: true,
+      serviceNumber: true,
+      scheduledAt: true,
+      estimatedDurationMinutes: true,
+      customer: { select: { name: true } },
+    },
+  });
+
+  return existingServices
+    .filter((s) => {
+      const existingStart = s.scheduledAt.getTime();
+      const existingEnd = existingStart + (s.estimatedDurationMinutes ?? 60) * 60 * 1000;
+      return newStart < existingEnd && newEnd > existingStart;
+    })
+    .map((s) => ({
+      id: s.id,
+      serviceNumber: s.serviceNumber,
+      scheduledAt: s.scheduledAt,
+      estimatedDurationMinutes: s.estimatedDurationMinutes,
+      customerName: s.customer.name,
+    }));
+}
 
 function formatAddress(address: Record<string, unknown> | null | undefined): string {
   if (!address) return "";
@@ -53,7 +107,7 @@ function formatServiceResponse(service: any) {
 
   const confirmationStatus = service.confirmedAt ? "CONFIRMED" : "PENDING";
   const confirmationLink = service.confirmationToken
-    ? `/confirm/${service.confirmationToken}`
+    ? `/confirmar/${service.confirmationToken}`
     : null;
 
   return {
@@ -68,6 +122,9 @@ function formatServiceResponse(service: any) {
     scheduledDate: service.scheduledAt instanceof Date
       ? service.scheduledAt.toISOString()
       : String(service.scheduledAt),
+    scheduledTime: service.scheduledAt instanceof Date
+      ? `${String(service.scheduledAt.getUTCHours()).padStart(2, "0")}:${String(service.scheduledAt.getUTCMinutes()).padStart(2, "0")}`
+      : null,
     employeeId: service.employeeId ?? null,
     employeeName: employee.name ?? null,
     status: service.status,
@@ -84,6 +141,11 @@ function formatServiceResponse(service: any) {
     confirmedAt: service.confirmedAt instanceof Date
       ? service.confirmedAt.toISOString()
       : service.confirmedAt ?? null,
+    confirmedName: service.confirmedName ?? null,
+    confirmedDocument: service.confirmedDocument ?? null,
+    confirmedDocumentType: service.confirmedDocumentType ?? null,
+    estimatedDurationMinutes: service.estimatedDurationMinutes ?? null,
+    durationMinutes: service.durationMinutes ?? null,
     createdAt: service.createdAt instanceof Date
       ? service.createdAt.toISOString()
       : String(service.createdAt),
@@ -100,14 +162,13 @@ export async function create(
     customerId: string;
     serviceType: string;
     scheduledDate: string;
+    scheduledTime?: string;
     employeeId?: string;
+    estimatedDurationMinutes?: number;
     equipmentIds?: string[];
   },
 ) {
-  const scheduledAt = new Date(data.scheduledDate);
-  if (isNaN(scheduledAt.getTime())) {
-    throw new AppError("Data agendada inválida", 400, "INVALID_DATE");
-  }
+  const scheduledAt = parseDateTime(data.scheduledDate, data.scheduledTime);
 
   const customer = await prisma.customer.findFirst({
     where: { id: data.customerId, companyId, deletedAt: null },
@@ -115,12 +176,37 @@ export async function create(
   });
   if (!customer) throw new AppError("Cliente não encontrado", 404, "NOT_FOUND");
 
+  await checkMonthlyServiceLimit(companyId);
+
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { niche: true },
+  });
+
+  if (company?.niche && !isValidServiceTypeForNiche(data.serviceType, company.niche)) {
+    throw new AppError("Tipo de serviço inválido para o nicho da empresa", 400, "INVALID_SERVICE_TYPE");
+  }
+
   if (data.contractId) {
     const contract = await prisma.contract.findFirst({
       where: { id: data.contractId, companyId, deletedAt: null },
       select: { id: true },
     });
     if (!contract) throw new AppError("Contrato não encontrado", 404, "NOT_FOUND");
+  }
+
+  const estimatedDurationMinutes = data.estimatedDurationMinutes ?? getDefaultDuration(data.serviceType);
+
+  if (data.employeeId) {
+    const conflicts = await checkScheduleConflict(companyId, data.employeeId, scheduledAt, estimatedDurationMinutes);
+    if (conflicts.length > 0) {
+      throw new AppError(
+        `Técnico já possui OS agendada neste horário`,
+        409,
+        "SCHEDULE_CONFLICT",
+        { conflicts },
+      );
+    }
   }
 
   const serviceNumber = await getNextServiceNumber(companyId);
@@ -138,6 +224,7 @@ export async function create(
       contractId: data.contractId ?? null,
       customerId: data.customerId,
       scheduledAt,
+      estimatedDurationMinutes,
       status: "SCHEDULED",
       amount,
       employeeId: data.employeeId ?? null,
@@ -243,11 +330,125 @@ export async function getById(companyId: string, serviceId: string, userRole?: s
       document: customer.document
         ? maskDocument(customer.document, (customer.documentType as "CPF" | "CNPJ") || "CNPJ")
         : null,
-      email: customer.email ? maskEmail(customer.email) : null,
     };
   }
 
   return formatServiceResponse({ ...service, customer: masked });
+}
+
+export async function update(
+  companyId: string,
+  serviceId: string,
+  data: {
+    contractId?: string;
+    customerId?: string;
+    serviceType?: string;
+    scheduledDate?: string;
+    scheduledTime?: string | null;
+    employeeId?: string | null;
+    equipmentIds?: string[];
+  },
+) {
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, companyId, deletedAt: null },
+  });
+
+  if (!service) throw new AppError("Serviço não encontrado", 404, "NOT_FOUND");
+  if (service.status !== "SCHEDULED") {
+    throw new AppError("Apenas serviços agendados podem ser editados", 400, "INVALID_STATUS");
+  }
+
+  const updateData: Record<string, unknown> = {};
+
+  if (data.customerId !== undefined) {
+    const customer = await prisma.customer.findFirst({
+      where: { id: data.customerId, companyId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!customer) throw new AppError("Cliente não encontrado", 404, "NOT_FOUND");
+    updateData.customerId = data.customerId;
+  }
+
+  if (data.contractId !== undefined) {
+    if (data.contractId) {
+      const contract = await prisma.contract.findFirst({
+        where: { id: data.contractId, companyId, deletedAt: null },
+        select: { id: true, amount: true },
+      });
+      if (!contract) throw new AppError("Contrato não encontrado", 404, "NOT_FOUND");
+      updateData.contractId = data.contractId;
+      updateData.amount = contract.amount;
+    } else {
+      updateData.contractId = null;
+      updateData.amount = null;
+    }
+  }
+
+  if (data.serviceType !== undefined) {
+    const comp = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { niche: true },
+    });
+    if (comp?.niche && !isValidServiceTypeForNiche(data.serviceType, comp.niche)) {
+      throw new AppError("Tipo de serviço inválido para o nicho da empresa", 400, "INVALID_SERVICE_TYPE");
+    }
+    updateData.serviceType = data.serviceType;
+  }
+  if (data.scheduledDate !== undefined) {
+    if (data.scheduledTime !== undefined) {
+      updateData.scheduledAt = parseDateTime(data.scheduledDate, data.scheduledTime);
+    } else if (service.scheduledAt) {
+      const existingTime = `${String(service.scheduledAt.getUTCHours()).padStart(2, "0")}:${String(service.scheduledAt.getUTCMinutes()).padStart(2, "0")}`;
+      updateData.scheduledAt = parseDateTime(data.scheduledDate, existingTime);
+    } else {
+      updateData.scheduledAt = parseDateTime(data.scheduledDate);
+    }
+  } else if (data.scheduledTime !== undefined) {
+    const dateStr = (new Date(service.scheduledAt)).toISOString().split("T")[0] ?? "";
+    updateData.scheduledAt = parseDateTime(dateStr, data.scheduledTime);
+  }
+  if (data.employeeId !== undefined) updateData.employeeId = data.employeeId;
+
+  const updated = await prisma.service.update({
+    where: { id: serviceId },
+    data: updateData as any,
+    include: {
+      customer: true,
+      employee: { select: { id: true, name: true, phone: true } },
+      equipment: { include: { equipment: true } },
+      photos: true,
+    },
+  });
+
+  if (data.equipmentIds !== undefined) {
+    await prisma.serviceEquipment.deleteMany({ where: { serviceId } });
+    if (data.equipmentIds.length > 0) {
+      await prisma.serviceEquipment.createMany({
+        data: data.equipmentIds.map((equipmentId) => ({
+          serviceId,
+          equipmentId,
+        })),
+      });
+    }
+  }
+
+  await createAuditLog({
+    companyId, entityType: "Service", entityId: serviceId, action: "UPDATE",
+    oldData: { status: "SCHEDULED" } as Record<string, unknown>,
+    newData: { ...updateData } as Record<string, unknown>,
+  });
+
+  const final = await prisma.service.findFirst({
+    where: { id: serviceId, companyId, deletedAt: null },
+    include: {
+      customer: true,
+      employee: { select: { id: true, name: true, phone: true } },
+      equipment: { include: { equipment: true } },
+      photos: true,
+    },
+  });
+
+  return formatServiceResponse(final);
 }
 
 export async function start(companyId: string, serviceId: string) {
@@ -370,54 +571,7 @@ export async function complete(
     return updated;
   });
 
-  const full = await prisma.service.findUnique({
-    where: { id: serviceId },
-    include: {
-      customer: { select: { name: true, address: true } },
-      employee: { select: { name: true } },
-      company: { select: { name: true, niche: true, logoUrl: true } },
-      equipment: {
-        include: {
-          equipment: { select: { type: true, brand: true, model: true, location: true } },
-        },
-      },
-    },
-  });
-
-  const reportUrl = full
-    ? await generateServiceReport(serviceId, {
-        serviceNumber: full.serviceNumber,
-        serviceType: full.serviceType,
-        scheduledAt: full.scheduledAt,
-        completedDate: full.completedDate,
-        durationMinutes: full.durationMinutes,
-        status: full.status,
-        technicianName: full.employee?.name ?? null,
-        companyId: full.companyId,
-        companyName: full.company.name,
-        companyNiche: full.company.niche,
-        companyLogo: full.company.logoUrl,
-        customerName: full.customer.name,
-        customerAddress: full.customer.address as Record<string, unknown> | null,
-        equipment: full.equipment.map((se) => ({
-          type: se.equipment.type,
-          brand: se.equipment.brand,
-          model: se.equipment.model,
-          location: se.equipment.location,
-          notes: se.notes,
-        })),
-        executionNotes: full.executionNotes,
-      })
-    : "";
-
-  if (reportUrl) {
-    await prisma.service.update({
-      where: { id: serviceId },
-      data: { reportUrl: reportUrl },
-    });
-  }
-
-  return { ...result, confirmationToken, confirmationLink: `/confirm/${confirmationToken}`, reportPdfUrl: reportUrl || null };
+  return { ...result, confirmationToken, confirmationLink: `/confirmar/${confirmationToken}` };
 }
 
 export async function cancel(companyId: string, serviceId: string, data: { reason: string }) {
@@ -444,8 +598,8 @@ export async function cancel(companyId: string, serviceId: string, data: { reaso
   return updated;
 }
 
-export async function reschedule(companyId: string, serviceId: string, data: { scheduledAt: string }) {
-  const newDate = new Date(data.scheduledAt);
+export async function reschedule(companyId: string, serviceId: string, data: { scheduledAt: string; scheduledTime?: string; estimatedDurationMinutes?: number }) {
+  const newDate = parseDateTime(data.scheduledAt, data.scheduledTime);
   if (newDate <= new Date()) {
     throw new AppError("A nova data deve ser no futuro", 400, "INVALID_DATE");
   }
@@ -459,9 +613,27 @@ export async function reschedule(companyId: string, serviceId: string, data: { s
     throw new AppError("Apenas serviços agendados ou em andamento podem ser reagendados", 400, "INVALID_STATUS");
   }
 
+  const estimatedDurationMinutes = data.estimatedDurationMinutes ?? service.estimatedDurationMinutes ?? 60;
+
+  if (service.employeeId) {
+    const conflicts = await checkScheduleConflict(companyId, service.employeeId, newDate, estimatedDurationMinutes, serviceId);
+    if (conflicts.length > 0) {
+      throw new AppError(
+        `Técnico já possui OS agendada neste horário`,
+        409,
+        "SCHEDULE_CONFLICT",
+        { conflicts },
+      );
+    }
+  }
+
   const updated = await prisma.service.update({
     where: { id: serviceId },
-    data: { scheduledAt: newDate, status: "SCHEDULED" },
+    data: {
+      scheduledAt: newDate,
+      estimatedDurationMinutes,
+      status: "SCHEDULED",
+    },
   });
 
   await createAuditLog({
@@ -500,49 +672,13 @@ export async function generatePdf(companyId: string, serviceId: string) {
   });
 
   if (!service) throw new AppError("Serviço não encontrado", 404, "NOT_FOUND");
-  if (service.status !== "COMPLETED") {
+  if (service.status !== "COMPLETED" && service.status !== "CONFIRMED") {
     throw new AppError("Apenas serviços concluídos podem gerar PDF", 400, "INVALID_STATUS");
   }
 
-  const full = await prisma.service.findUnique({
-    where: { id: serviceId },
-    include: {
-      customer: { select: { name: true, address: true } },
-      employee: { select: { name: true } },
-      company: { select: { name: true, niche: true, logoUrl: true } },
-      equipment: {
-        include: {
-          equipment: { select: { type: true, brand: true, model: true, location: true } },
-        },
-      },
-    },
-  });
+  const reportData = await buildServiceReportData(serviceId);
 
-  if (!full) throw new AppError("Serviço não encontrado", 404, "NOT_FOUND");
-
-  const reportUrl = await generateServiceReport(serviceId, {
-    serviceNumber: full.serviceNumber,
-    serviceType: full.serviceType,
-    scheduledAt: full.scheduledAt,
-    completedDate: full.completedDate,
-    durationMinutes: full.durationMinutes,
-    status: full.status,
-    technicianName: full.employee?.name ?? null,
-    companyId: full.companyId,
-    companyName: full.company.name,
-    companyNiche: full.company.niche,
-    companyLogo: full.company.logoUrl,
-    customerName: full.customer.name,
-    customerAddress: full.customer.address as Record<string, unknown> | null,
-    equipment: full.equipment.map((se) => ({
-      type: se.equipment.type,
-      brand: se.equipment.brand,
-      model: se.equipment.model,
-      location: se.equipment.location,
-      notes: se.notes,
-    })),
-    executionNotes: full.executionNotes,
-  });
+  const reportUrl = await generateServiceReport(serviceId, reportData);
 
   if (!reportUrl) {
     throw new AppError("Falha ao gerar o PDF. Verifique a configuração do storage.", 500, "PDF_GENERATION_FAILED");
@@ -554,6 +690,43 @@ export async function generatePdf(companyId: string, serviceId: string) {
   });
 
   return { reportPdfUrl: reportUrl };
+}
+
+export async function previewReport(
+  companyId: string,
+  serviceId: string,
+  overrides?: {
+    executionNotes?: string;
+    durationMinutes?: number;
+    equipmentNotes?: Array<{ equipmentId: string; note: string }>;
+  },
+): Promise<Buffer> {
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, companyId, deletedAt: null },
+  });
+
+  if (!service) throw new AppError("Serviço não encontrado", 404, "NOT_FOUND");
+
+  const reportData = await buildServiceReportData(serviceId);
+
+  if (overrides) {
+    if (overrides.executionNotes !== undefined) {
+      reportData.executionNotes = overrides.executionNotes;
+    }
+    if (overrides.durationMinutes !== undefined) {
+      reportData.durationMinutes = overrides.durationMinutes;
+    }
+    if (overrides.equipmentNotes && overrides.equipmentNotes.length > 0) {
+      for (const eq of overrides.equipmentNotes) {
+        const target = reportData.equipment.find((e: any) => e.id === eq.equipmentId);
+        if (target) {
+          target.notes = eq.note;
+        }
+      }
+    }
+  }
+
+  return generateServiceReportBuffer(serviceId, reportData);
 }
 
 export async function getReport(companyId: string, serviceId: string) {

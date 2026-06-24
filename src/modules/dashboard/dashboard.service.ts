@@ -42,8 +42,8 @@ export async function getSummary(companyId: string) {
     prisma.employee.count({ where: { companyId, deletedAt: null, isActive: true } }),
     prisma.contract.aggregate({ where: { companyId, deletedAt: null, status: "ACTIVE" }, _sum: { amount: true } }),
     prisma.service.count({ where: { companyId, deletedAt: null, scheduledAt: { gte: todayStart, lte: todayEnd } } }),
-    prisma.service.count({ where: { companyId, deletedAt: null, status: "COMPLETED", completedDate: { gte: monthStart, lte: monthEnd } } }),
-    prisma.service.count({ where: { companyId, deletedAt: null, status: "COMPLETED", confirmedAt: { not: null }, completedDate: { gte: monthStart, lte: monthEnd } } }),
+    prisma.service.count({ where: { companyId, deletedAt: null, status: { in: ["COMPLETED", "CONFIRMED"] }, completedDate: { gte: monthStart, lte: monthEnd } } }),
+    prisma.service.count({ where: { companyId, deletedAt: null, confirmedAt: { not: null }, completedDate: { gte: monthStart, lte: monthEnd } } }),
     prisma.$queryRaw<Array<{ avg: number | null }>>`
       SELECT AVG(
         EXTRACT(EPOCH FROM (s.completed_date - s.scheduled_at)) / 3600
@@ -51,7 +51,7 @@ export async function getSummary(companyId: string) {
       FROM services s
       WHERE s.company_id = ${companyId}
         AND s.deleted_at IS NULL
-        AND s.status = 'COMPLETED'
+        AND s.status IN ('COMPLETED', 'CONFIRMED')
         AND s.completed_date IS NOT NULL
         AND s.scheduled_at IS NOT NULL
     `,
@@ -98,20 +98,23 @@ export async function getSummary(companyId: string) {
   };
 }
 
-export async function getUpcomingServices(companyId: string, start?: string, end?: string) {
-  const now = new Date();
+export async function getUpcomingServices(companyId: string, start?: string, end?: string, limit?: number) {
+  const now = startOfDay(new Date());
   const startDate = start ? new Date(start) : now;
   const endDate = end ? new Date(end) : new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  const services = await prisma.service.findMany({
-    where: { companyId, deletedAt: null, scheduledAt: { gte: startDate, lte: endDate } },
-    include: {
-      customer: { select: { id: true, name: true, address: true } },
-      employee: { select: { id: true, name: true } },
-    },
-    orderBy: { scheduledAt: "asc" },
-    take: 20,
-  });
+  const services = limit
+    ? await prisma.service.findMany({
+        where: { companyId, deletedAt: null, scheduledAt: { gte: startDate, lte: endDate } },
+        include: { customer: { select: { id: true, name: true, address: true } }, employee: { select: { id: true, name: true } } },
+        orderBy: { scheduledAt: "asc" },
+        take: limit,
+      })
+    : await prisma.service.findMany({
+        where: { companyId, deletedAt: null, scheduledAt: { gte: startDate, lte: endDate } },
+        include: { customer: { select: { id: true, name: true, address: true } }, employee: { select: { id: true, name: true } } },
+        orderBy: { scheduledAt: "asc" },
+      });
 
   return services.map((s) => ({
     id: s.id,
@@ -120,13 +123,15 @@ export async function getUpcomingServices(companyId: string, start?: string, end
     employeeName: s.employee?.name ?? null,
     employeeId: s.employee?.id ?? null,
     scheduledDate: s.scheduledAt.toISOString(),
+    scheduledTime: `${String(s.scheduledAt.getUTCHours()).padStart(2, "0")}:${String(s.scheduledAt.getUTCMinutes()).padStart(2, "0")}`,
+    estimatedDurationMinutes: s.estimatedDurationMinutes,
     serviceType: s.serviceType ?? "MAINTENANCE",
     status: s.status,
   }));
 }
 
 export async function getExpiringContracts(companyId: string) {
-  const now = new Date();
+  const now = startOfDay(new Date());
   const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
   const contracts = await prisma.contract.findMany({
@@ -204,7 +209,7 @@ export async function getTechnicianStatus(companyId: string) {
   return employees.map((emp) => {
     const todayServices = emp.services;
     const servicesToday = todayServices.length;
-    const completedToday = todayServices.filter((s) => s.status === "COMPLETED").length;
+    const completedToday = todayServices.filter((s) => s.status === "COMPLETED" || s.status === "CONFIRMED").length;
     const currentService = todayServices.find((s) => s.status === "IN_PROGRESS") ?? null;
 
     let status: "FREE" | "BUSY" | "OFFLINE";
@@ -239,7 +244,7 @@ export async function getMonthlyRevenue(companyId: string) {
     FROM services s
     WHERE s.company_id = ${companyId}
       AND s.deleted_at IS NULL
-      AND s.status = 'COMPLETED'
+      AND s.status IN ('COMPLETED', 'CONFIRMED')
       AND s.completed_date >= ${startOfMonth(new Date(now.getFullYear(), now.getMonth() - 11, 1))}
     GROUP BY DATE_TRUNC('month', s.completed_date)
     ORDER BY month ASC

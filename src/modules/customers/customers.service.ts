@@ -1,9 +1,10 @@
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
-import { maskDocument, maskEmail, type CustomerRaw } from "../../lib/mask";
+import { maskDocument, type CustomerRaw } from "../../lib/mask";
 import { parsePagination, buildSkip, buildMeta } from "../../utils/pagination";
 import { validateDocument, formatCpf, formatCnpj } from "../../utils/document";
+import { checkCustomerLimit } from "../company/plan-limits";
 
 function mapCustomerToFrontend(c: any, role: string) {
   const base = {
@@ -23,11 +24,13 @@ function mapCustomerToFrontend(c: any, role: string) {
     updatedAt: c.updatedAt,
   };
 
+  const email = c.email ?? null;
+
   if (role === "TECHNICIAN") {
     return {
       ...base,
       document: c.document ? maskDocument(c.document, (c.documentType as "CPF" | "CNPJ") || "CNPJ") : null,
-      email: c.email ? maskEmail(c.email) : null,
+      email,
       address: null,
     };
   }
@@ -35,7 +38,7 @@ function mapCustomerToFrontend(c: any, role: string) {
   return {
     ...base,
     document: c.document ? maskDocument(c.document, (c.documentType as "CPF" | "CNPJ") || "CNPJ") : null,
-    email: c.email ? maskEmail(c.email) : null,
+    email,
     address: c.address ?? null,
   };
 }
@@ -100,6 +103,8 @@ export async function create(
     notes?: string;
   },
 ) {
+  await checkCustomerLimit(companyId);
+
   if (!validateDocument(data.document, data.documentType)) {
     throw new AppError(
       data.documentType === "CPF" ? "CPF inválido" : "CNPJ inválido",

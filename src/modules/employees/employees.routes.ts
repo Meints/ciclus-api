@@ -38,4 +38,10 @@ export async function employeesRoutes(app: FastifyInstance) {
     { preHandler: [app.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
     employeesController.getServices,
   );
+
+  app.get(
+    "/:id/availability",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    employeesController.getAvailability,
+  );
 }

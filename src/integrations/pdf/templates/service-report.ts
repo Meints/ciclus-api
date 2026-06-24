@@ -65,9 +65,21 @@ export interface ServiceReportData {
   companyName: string;
   companyNiche?: string | null;
   companyLogo?: string | null;
+  companyDocument?: string | null;
+  companyAddress?: Record<string, unknown> | null;
+  companyPhone?: string | null;
+  companyEmail?: string | null;
   customerName: string;
   customerAddress?: Record<string, unknown> | null;
+  customerDocument?: string | null;
+  customerDocumentType?: string | null;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
+  createdAt?: Date;
+  amount?: number | null;
+  notes?: string | null;
   equipment: Array<{
+    id?: string;
     type: string;
     brand?: string | null;
     model?: string | null;
@@ -76,6 +88,12 @@ export interface ServiceReportData {
   }>;
   executionNotes?: string | null;
   confirmedAt?: Date | null;
+  confirmedName?: string | null;
+  confirmedDocument?: string | null;
+  confirmedDocumentType?: string | null;
+  confirmedIp?: string | null;
+  confirmedUserAgent?: string | null;
+  photos?: Array<{ url: string; caption?: string | null }>;
 }
 
 export function renderServiceReport(
@@ -187,16 +205,23 @@ export function renderServiceReport(
   doc.moveDown(1);
   drawLine();
 
-  // ── Status de confirmação ──
-  doc.fontSize(12).font(boldFont).text("Status de Confirmação");
+  // ── Assinatura digital ──
+  doc.fontSize(12).font(boldFont).text("Assinatura Digital");
   doc.moveDown(0.3);
   doc.fontSize(10).font(regularFont);
   if (data.confirmedAt) {
+    doc.text(`Confirmado por: ${data.confirmedName || "—"}`);
+    if (data.confirmedDocument) {
+      const docLabel = data.confirmedDocumentType === "CNPJ" ? "CNPJ" : "CPF";
+      doc.text(`${docLabel}: ${data.confirmedDocument}`);
+    }
     doc.text(
-      `Serviço confirmado pelo cliente em ${data.confirmedAt.toLocaleDateString(
-        "pt-BR",
-      )} às ${data.confirmedAt.toLocaleTimeString("pt-BR")}`,
+      `Data e hora: ${data.confirmedAt.toLocaleDateString("pt-BR")} às ${data.confirmedAt.toLocaleTimeString("pt-BR")}`,
     );
+    doc.text(`IP: ${data.confirmedIp || "—"}`);
+    if (data.confirmedUserAgent) {
+      doc.text(`Dispositivo: ${data.confirmedUserAgent}`);
+    }
   } else {
     doc.text("Aguardando confirmação do cliente");
   }

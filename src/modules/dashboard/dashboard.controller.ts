@@ -9,8 +9,9 @@ export async function getSummary(request: FastifyRequest, reply: FastifyReply) {
 
 export async function getUpcomingServices(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string };
-  const query = request.query as { start?: string; end?: string };
-  const data = await dashboardService.getUpcomingServices(user.companyId, query.start, query.end);
+  const query = request.query as { start?: string; end?: string; limit?: string };
+  const limit = query.limit ? Number(query.limit) : undefined;
+  const data = await dashboardService.getUpcomingServices(user.companyId, query.start, query.end, limit);
   return reply.status(200).send({ data });
 }
 

@@ -3,7 +3,7 @@ import * as confirmController from "./confirm.controller";
 
 export async function confirmRoutes(app: FastifyInstance) {
   app.get(
-    "/confirm/:token",
+    "/confirmar/:token",
     {
       config: { rateLimit: { max: 20, timeWindow: 60000 } },
     },
@@ -11,7 +11,7 @@ export async function confirmRoutes(app: FastifyInstance) {
   );
 
   app.post(
-    "/confirm/:token",
+    "/confirmar/:token",
     {
       config: { rateLimit: { max: 5, timeWindow: 60000 } },
     },
