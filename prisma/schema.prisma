@@ -286,6 +286,7 @@ enum ServiceStatus {
 }
 
 enum UserRole {
+  SUPERADMIN
   OWNER
   ADMIN
   TECHNICIAN
