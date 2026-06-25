@@ -28,6 +28,7 @@ model Company {
   contracts         Contract[]
   customers         Customer[]
   employees         Employee[]
+  notifications     Notification[]
   services          Service[]
   users             User[]
 
@@ -51,6 +52,7 @@ model User {
   resetPasswordExpiresAt DateTime?  @map("reset_password_expires_at")
   deletedAt              DateTime?  @map("deleted_at")
   auditLogs              AuditLog[]
+  notifications          Notification[]
   company                Company    @relation(fields: [companyId], references: [id])
 
   @@index([companyId])
@@ -158,6 +160,7 @@ model Service {
   confirmedDocument          String?            @map("confirmed_document")
   confirmedDocumentType      String?            @map("confirmed_document_type")
   cancelledReason            String?            @map("cancelled_reason")
+  checklistData              Json?              @map("checklist_data")
   equipment                  ServiceEquipment[]
   photos                     ServicePhoto[]
   company                    Company            @relation(fields: [companyId], references: [id])
@@ -237,6 +240,25 @@ model ServicePhoto {
   @@map("service_photos")
 }
 
+model Notification {
+  id         String    @id @default(uuid())
+  companyId  String    @map("company_id")
+  userId     String?   @map("user_id")
+  type       String
+  title      String
+  body       String
+  entityType String?   @map("entity_type")
+  entityId   String?   @map("entity_id")
+  readAt     DateTime? @map("read_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  company    Company   @relation(fields: [companyId], references: [id])
+  user       User?     @relation(fields: [userId], references: [id])
+
+  @@index([companyId, readAt])
+  @@index([userId])
+  @@map("notifications")
+}
+
 enum ContractFrequency {
   MONTHLY
   BIMONTHLY
@@ -267,4 +289,5 @@ enum UserRole {
   OWNER
   ADMIN
   TECHNICIAN
+  SUPERADMIN
 }

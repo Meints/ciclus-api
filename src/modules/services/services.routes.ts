@@ -46,6 +46,18 @@ export async function servicesRoutes(app: FastifyInstance) {
   );
 
   app.patch(
+    "/:id/toggle-paid",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    servicesController.togglePaid,
+  );
+
+  app.patch(
+    "/:id/checklist",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN", "TECHNICIAN")] },
+    servicesController.updateChecklist,
+  );
+
+  app.patch(
     "/:id/cancel",
     { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
     servicesController.cancel,

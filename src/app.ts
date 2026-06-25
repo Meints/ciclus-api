@@ -21,7 +21,9 @@ import { contractsRoutes } from "./modules/contracts/contracts.routes";
 import { servicesRoutes } from "./modules/services/services.routes";
 import { confirmRoutes } from "./modules/confirm/confirm.routes";
 import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
+import { notificationsRoutes } from "./modules/notifications/notifications.routes";
 import { lgpdRoutes } from "./modules/lgpd/lgpd.routes";
+import { adminRoutes } from "./modules/admin/admin.routes";
 
 export function buildApp() {
   const app = Fastify({ logger: loggerConfig });
@@ -81,7 +83,9 @@ export function buildApp() {
   app.register(servicesRoutes, { prefix: "/services" });
   app.register(confirmRoutes);
   app.register(dashboardRoutes);
+  app.register(notificationsRoutes, { prefix: "/notifications" });
   app.register(lgpdRoutes);
+  app.register(adminRoutes, { prefix: "/admin" });
 
   return app;
 }

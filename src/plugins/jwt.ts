@@ -7,7 +7,8 @@ declare module "@fastify/jwt" {
     payload: {
       sub: string; // userId
       companyId: string; // tenant
-      role: "OWNER" | "ADMIN" | "TECHNICIAN";
+      role: "OWNER" | "ADMIN" | "TECHNICIAN" | "SUPERADMIN";
+      impersonating?: boolean;
     };
   }
 }

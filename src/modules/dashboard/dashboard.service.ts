@@ -45,15 +45,13 @@ export async function getSummary(companyId: string) {
     prisma.service.count({ where: { companyId, deletedAt: null, status: { in: ["COMPLETED", "CONFIRMED"] }, completedDate: { gte: monthStart, lte: monthEnd } } }),
     prisma.service.count({ where: { companyId, deletedAt: null, confirmedAt: { not: null }, completedDate: { gte: monthStart, lte: monthEnd } } }),
     prisma.$queryRaw<Array<{ avg: number | null }>>`
-      SELECT AVG(
-        EXTRACT(EPOCH FROM (s.completed_date - s.scheduled_at)) / 3600
-      ) as avg
+      SELECT AVG(s.duration_minutes) / 60.0 as avg
       FROM services s
       WHERE s.company_id = ${companyId}
         AND s.deleted_at IS NULL
         AND s.status IN ('COMPLETED', 'CONFIRMED')
-        AND s.completed_date IS NOT NULL
-        AND s.scheduled_at IS NOT NULL
+        AND s.duration_minutes IS NOT NULL
+        AND s.duration_minutes > 0
     `,
   ]);
 

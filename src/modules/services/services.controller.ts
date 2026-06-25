@@ -1,7 +1,7 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import * as servicesService from "./services.service";
 import { validateOrThrow } from "../../lib/validate";
-import { completeServiceSchema } from "./dtos/complete-service.dto";
+import { completeServiceSchema, updateChecklistSchema } from "./dtos/complete-service.dto";
 import { cancelServiceSchema } from "./dtos/cancel-service.dto";
 import { rescheduleServiceSchema } from "./dtos/reschedule-service.dto";
 import { serviceFiltersSchema } from "./dtos/service-filters.dto";
@@ -22,6 +22,7 @@ export async function list(request: FastifyRequest, reply: FastifyReply) {
   const result = await servicesService.list(
     user.companyId,
     {
+      search: query.search,
       status: query.status,
       employeeId: query.employeeId,
       customerId: query.customerId,
@@ -70,6 +71,21 @@ export async function complete(request: FastifyRequest, reply: FastifyReply) {
   const body = validateOrThrow(completeServiceSchema, request.body);
   const result = await servicesService.complete(user.companyId, id, body);
   return reply.status(200).send({ data: result });
+}
+
+export async function togglePaid(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string };
+  const { id } = request.params as { id: string };
+  const updated = await servicesService.togglePaid(user.companyId, id);
+  return reply.status(200).send({ data: updated });
+}
+
+export async function updateChecklist(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string };
+  const { id } = request.params as { id: string };
+  const body = validateOrThrow(updateChecklistSchema, request.body);
+  const updated = await servicesService.updateChecklist(user.companyId, id, body.checklistData);
+  return reply.status(200).send({ data: updated });
 }
 
 export async function cancel(request: FastifyRequest, reply: FastifyReply) {

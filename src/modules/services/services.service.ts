@@ -6,6 +6,9 @@ import { parsePagination, buildSkip, buildMeta } from "../../utils/pagination";
 import { getNextServiceNumber } from "../../utils/service-number";
 import { parseDateOnly, parseDateTime } from "../../utils/date";
 import { generateServiceReport, generateServiceReportBuffer } from "../../integrations/pdf/pdf.service";
+import { sendServiceConfirmationEmail } from "../../integrations/email/email.service";
+import { sendConfirmationWhatsApp } from "../../integrations/whatsapp/whatsapp.service";
+import { createNotification } from "../notifications/notifications.service";
 import { buildServiceReportData } from "./services.helpers";
 import { getDefaultDuration } from "./dtos/create-service.dto";
 import { isValidServiceTypeForNiche } from "./service-types";
@@ -146,6 +149,8 @@ function formatServiceResponse(service: any) {
     confirmedDocumentType: service.confirmedDocumentType ?? null,
     estimatedDurationMinutes: service.estimatedDurationMinutes ?? null,
     durationMinutes: service.durationMinutes ?? null,
+    isPaid: service.isPaid ?? false,
+    checklistData: service.checklistData ?? null,
     createdAt: service.createdAt instanceof Date
       ? service.createdAt.toISOString()
       : String(service.createdAt),
@@ -253,12 +258,25 @@ export async function create(
     newData: { serviceNumber, customerId: data.customerId, serviceType: data.serviceType },
   });
 
+  if (data.employeeId) {
+    const employeeName = (service.employee as any)?.name ?? "técnico";
+    createNotification({
+      companyId,
+      type: "SERVICE_ASSIGNED",
+      title: "Serviço atribuído",
+      body: `OS #${serviceNumber} atribuída a ${employeeName}.`,
+      entityType: "Service",
+      entityId: service.id,
+    }).catch(console.error);
+  }
+
   return formatServiceResponse(service);
 }
 
 export async function list(
   companyId: string,
   filters: {
+    search?: string;
     status?: string;
     employeeId?: string;
     customerId?: string;
@@ -277,6 +295,9 @@ export async function list(
   if (filters.employeeId) where.employeeId = filters.employeeId;
   if (filters.customerId) where.customerId = filters.customerId;
   if (filters.contractId) where.contractId = filters.contractId;
+  if (filters.search) {
+    where.customer = { name: { contains: filters.search, mode: "insensitive" } };
+  }
 
   if (filters.dateStart || filters.dateEnd) {
     const scheduledAtFilter: Record<string, Date> = {};
@@ -531,7 +552,7 @@ export async function reopen(companyId: string, serviceId: string) {
 
 export async function complete(
   companyId: string, serviceId: string,
-  data: { executionNotes?: string; durationMinutes?: number; equipmentNotes?: Array<{ equipmentId: string; note: string }> },
+  data: { executionNotes?: string; durationMinutes?: number; equipmentNotes?: Array<{ equipmentId: string; note: string }>; checklistData?: Record<string, unknown> },
 ) {
   const service = await prisma.service.findFirst({
     where: { id: serviceId, companyId, deletedAt: null },
@@ -555,6 +576,7 @@ export async function complete(
         durationMinutes: data.durationMinutes ?? null,
         confirmationToken,
         confirmationTokenExpiresAt,
+        ...(data.checklistData !== undefined ? { checklistData: data.checklistData as any } : {}),
       },
     });
 
@@ -571,7 +593,75 @@ export async function complete(
     return updated;
   });
 
-  return { ...result, confirmationToken, confirmationLink: `/confirmar/${confirmationToken}` };
+  const confirmationLink = `/confirmar/${confirmationToken}`;
+
+  // Fire-and-forget: notify OWNER/ADMIN, email + WhatsApp customer.
+  void (async () => {
+    try {
+      const [customer, company] = await Promise.all([
+        prisma.customer.findFirst({
+          where: { id: service.customerId },
+          select: { email: true, name: true, phone: true },
+        }),
+        prisma.company.findFirst({ where: { id: companyId }, select: { name: true } }),
+      ]);
+
+      createNotification({
+        companyId,
+        type: "SERVICE_COMPLETED",
+        title: "Serviço concluído",
+        body: `OS #${service.serviceNumber} foi concluída e aguarda confirmação do cliente.`,
+        entityType: "Service",
+        entityId: serviceId,
+      }).catch(console.error);
+
+      const companyName = company?.name ?? "Sua empresa";
+
+      if (customer?.email) {
+        sendServiceConfirmationEmail(customer.email, {
+          customerName: customer.name ?? "Cliente",
+          companyName,
+          serviceType: service.serviceType ?? "Serviço",
+          completedDate: new Date().toLocaleDateString("pt-BR"),
+          confirmationLink: `${env.FRONTEND_URL}${confirmationLink}`,
+          serviceNumber: service.serviceNumber,
+        }).catch(console.error);
+      }
+
+      if (customer?.phone && env.ZAPI_INSTANCE_ID && env.ZAPI_TOKEN) {
+        sendConfirmationWhatsApp(customer.phone, {
+          customerName: customer.name ?? "Cliente",
+          companyName,
+          confirmationLink,
+          serviceNumber: service.serviceNumber,
+          frontendUrl: env.FRONTEND_URL,
+        }).catch(console.error);
+      }
+    } catch (error) {
+      console.error("[complete] Falha ao enviar notificações pós-conclusão:", error);
+    }
+  })();
+
+  return { ...result, confirmationToken, confirmationLink };
+}
+
+export async function togglePaid(companyId: string, serviceId: string) {
+  const service = await prisma.service.findFirst({ where: { id: serviceId, companyId, deletedAt: null } });
+  if (!service) throw new AppError("Serviço não encontrado", 404, "NOT_FOUND");
+  const updated = await prisma.service.update({ where: { id: serviceId }, data: { isPaid: !service.isPaid } });
+  await createAuditLog({ companyId, entityType: "Service", entityId: serviceId, action: "TOGGLE_PAID", newData: { isPaid: updated.isPaid } });
+  return formatServiceResponse(updated);
+}
+
+export async function updateChecklist(companyId: string, serviceId: string, checklistData: Record<string, unknown>) {
+  const service = await prisma.service.findFirst({ where: { id: serviceId, companyId, deletedAt: null } });
+  if (!service) throw new AppError("Serviço não encontrado", 404, "NOT_FOUND");
+  const updated = await prisma.service.update({
+    where: { id: serviceId },
+    data: { checklistData: checklistData as any },
+  });
+  await createAuditLog({ companyId, entityType: "Service", entityId: serviceId, action: "UPDATE_CHECKLIST", newData: { checklistData } });
+  return formatServiceResponse(updated);
 }
 
 export async function cancel(companyId: string, serviceId: string, data: { reason: string }) {

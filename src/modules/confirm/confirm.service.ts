@@ -3,6 +3,7 @@ import { AppError } from "../../lib/app-error";
 import { createAuditLog } from "../../lib/audit";
 import { buildServiceReportData } from "../services/services.helpers";
 import { generateServiceReport } from "../../integrations/pdf/pdf.service";
+import { createNotification } from "../notifications/notifications.service";
 
 function anonymizeIp(ip: string): string {
   if (!ip || ip === "::1" || ip.startsWith("::ffff:")) {
@@ -127,6 +128,15 @@ export async function confirm(token: string, ip: string, userAgent: string, name
   } catch (error) {
     console.error(`[confirm] Falha ao regenerar PDF na confirmação da OS ${service.id}:`, error);
   }
+
+  createNotification({
+    companyId: service.companyId,
+    type: "SERVICE_CONFIRMED",
+    title: "Serviço confirmado pelo cliente",
+    body: `OS #${service.serviceNumber} foi confirmada por ${name}.`,
+    entityType: "Service",
+    entityId: service.id,
+  }).catch(console.error);
 
   return {
     success: true,
