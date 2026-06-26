@@ -665,7 +665,7 @@ export async function updateChecklist(companyId: string, serviceId: string, chec
   return formatServiceResponse(updated);
 }
 
-export async function cancel(companyId: string, serviceId: string, data: { reason: string }) {
+export async function cancel(companyId: string, serviceId: string, data: { reason?: string }) {
   const service = await prisma.service.findFirst({
     where: { id: serviceId, companyId, deletedAt: null },
   });

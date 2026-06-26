@@ -33,6 +33,9 @@ export async function getSummary(companyId: string) {
     completedServices,
     confirmedServices,
     avgHoursRaw,
+    paidThisMonthAgg,
+    pendingPaymentAgg,
+    totalServices,
   ] = await Promise.all([
     prisma.customer.count({ where: { companyId, deletedAt: null, isActive: true } }),
     prisma.contract.count({ where: { companyId, deletedAt: null, status: "ACTIVE" } }),
@@ -53,6 +56,15 @@ export async function getSummary(companyId: string) {
         AND s.duration_minutes IS NOT NULL
         AND s.duration_minutes > 0
     `,
+    prisma.service.aggregate({
+      where: { companyId, deletedAt: null, isPaid: true, status: { in: ["COMPLETED", "CONFIRMED"] }, completedDate: { gte: monthStart, lte: monthEnd } },
+      _sum: { amount: true },
+    }),
+    prisma.service.aggregate({
+      where: { companyId, deletedAt: null, isPaid: false, status: { in: ["COMPLETED", "CONFIRMED"] } },
+      _sum: { amount: true },
+    }),
+    prisma.service.count({ where: { companyId, deletedAt: null } }),
   ]);
 
   const activeContractsList = await prisma.contract.findMany({
@@ -93,6 +105,9 @@ export async function getSummary(companyId: string) {
     servicesScheduledToday,
     confirmationRate,
     averageCompletionHours,
+    paidThisMonth: paidThisMonthAgg._sum.amount ? Number(paidThisMonthAgg._sum.amount) : 0,
+    pendingPayment: pendingPaymentAgg._sum.amount ? Number(pendingPaymentAgg._sum.amount) : 0,
+    totalServices,
   };
 }
 

@@ -1,5 +1,19 @@
+import path from "node:path";
+import fs from "node:fs/promises";
 import { prisma } from "../../config/prisma";
 import type { ServiceReportData } from "../../integrations/pdf/pdf.service";
+
+async function toBase64DataUri(filePath: string): Promise<string | null> {
+  try {
+    const abs = path.resolve(process.cwd(), filePath.replace(/^\//, ""));
+    const buf = await fs.readFile(abs);
+    const ext = path.extname(abs).toLowerCase();
+    const mime = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
+    return `data:${mime};base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
 
 export async function buildServiceReportData(serviceId: string): Promise<ServiceReportData> {
   const service = await prisma.service.findUniqueOrThrow({
@@ -80,6 +94,11 @@ export async function buildServiceReportData(serviceId: string): Promise<Service
     confirmedDocumentType: service.confirmedDocumentType,
     confirmedIp: service.confirmedIp,
     confirmedUserAgent: service.confirmedUserAgent,
-    photos: service.photos.map((p) => ({ url: p.url, caption: p.caption })),
+    photos: await Promise.all(
+      service.photos.map(async (p) => ({
+        url: (await toBase64DataUri(p.url)) ?? p.url,
+        caption: p.caption,
+      })),
+    ),
   };
 }

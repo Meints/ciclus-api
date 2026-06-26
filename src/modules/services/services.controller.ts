@@ -91,7 +91,7 @@ export async function updateChecklist(request: FastifyRequest, reply: FastifyRep
 export async function cancel(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string };
   const { id } = request.params as { id: string };
-  const body = validateOrThrow(cancelServiceSchema, request.body);
+  const body = validateOrThrow(cancelServiceSchema, request.body ?? {});
   const updated = await servicesService.cancel(user.companyId, id, body);
   return reply.status(200).send({ data: updated });
 }
@@ -141,8 +141,13 @@ export async function getReport(request: FastifyRequest, reply: FastifyReply) {
 export async function addPhotos(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string };
   const { id } = request.params as { id: string };
-  const files = (request as any).files ?? [];
-  const result = await servicesService.addPhotos(user.companyId, id, files);
+
+  const file = await request.file();
+  if (!file) {
+    return reply.status(400).send({ error: { code: "NO_FILE", message: "Nenhum arquivo enviado" } });
+  }
+
+  const result = await servicesService.addPhotos(user.companyId, id, [file]);
   return reply.status(200).send(result);
 }
 

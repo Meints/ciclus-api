@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const cancelServiceSchema = z.object({
-  reason: z.string().min(1, "Motivo do cancelamento é obrigatório").max(500),
+  reason: z.string().max(500).optional(),
 }).strict();
 
 export type CancelServiceInput = z.infer<typeof cancelServiceSchema>;

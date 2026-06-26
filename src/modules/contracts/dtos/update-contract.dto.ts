@@ -2,6 +2,7 @@ import { z } from "zod";
 import { contractFrequencySchema } from "./create-contract.dto";
 
 export const updateContractSchema = z.object({
+  customerId: z.string().uuid().optional(),
   frequency: contractFrequencySchema.optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),

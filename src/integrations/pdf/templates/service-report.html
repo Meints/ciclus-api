@@ -8,451 +8,533 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 12px;
-      background: #e8e8e8;
-      color: #222;
-    }
-
-    .os-page {
-      width: 210mm;
-      min-height: 297mm;
-      margin: 20px auto;
-      background: #fff;
-      padding: 12mm 14mm 10mm;
-      box-shadow: 0 2px 16px rgba(0,0,0,.18);
-    }
-
-    :root {
-      --azul:        #1a6fa8;
-      --azul-claro:  #d6e8f7;
-      --azul-medio:  #a0c4e0;
-      --linha-par:   #eef5fb;
-      --borda:       #b0cfe6;
-    }
-
-    .os-titulo {
-      background: var(--azul);
-      color: #fff;
-      text-align: center;
-      font-size: 14px;
-      font-weight: bold;
-      padding: 6px 0;
-      letter-spacing: .5px;
-    }
-
-    .os-header {
-      display: grid;
-      grid-template-columns: 44mm 1fr;
-      border: 1px solid var(--borda);
-      border-top: none;
-    }
-
-    .os-logo {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-right: 1px solid var(--borda);
-      background: #f4f4f4;
-      min-height: 26mm;
-      padding: 6px;
-      color: #999;
-      font-size: 11px;
-    }
-
-    .os-logo img {
-      max-width: 100%;
-      max-height: 24mm;
-      object-fit: contain;
-    }
-
-    .os-empresa {
-      padding: 8px 10px;
-      line-height: 1.65;
-    }
-
-    .os-empresa .empresa-nome {
-      font-weight: bold;
-      font-size: 13px;
-      color: var(--azul);
-    }
-
-    table { width: 100%; border-collapse: collapse; }
-
-    td { border: 1px solid var(--borda); padding: 3px 5px; vertical-align: middle; }
-
-    .label {
-      background: var(--azul-claro);
-      color: var(--azul);
-      font-weight: bold;
-      white-space: nowrap;
-      width: 1%;
-    }
-
-    .valor { background: #fff; }
-
-    .secao {
-      background: var(--azul-claro);
-      color: var(--azul);
-      font-weight: bold;
-      text-align: center;
-      font-size: 12px;
-      padding: 5px;
-      border: 1px solid var(--borda);
-      border-top: none;
-    }
-
-    tr:nth-child(even) td { background: var(--linha-par); }
-    tr:nth-child(odd)  td.label { background: var(--azul-claro); }
-
-    .caixa-texto {
-      border: 1px solid var(--borda);
-      border-top: none;
-      min-height: 30mm;
-      padding: 6px 8px;
-      line-height: 1.9;
-      background: #fff;
-      white-space: pre-wrap;
-    }
-
-    .caixa-texto.menor { min-height: 20mm; }
-
-    .caixa-texto {
-      background-image: repeating-linear-gradient(
-        to bottom,
-        transparent,
-        transparent calc(1.9em - 1px),
-        #d8eaf7 calc(1.9em - 1px),
-        #d8eaf7 1.9em
-      );
-    }
-
-    .tab-materiais th {
-      background: var(--azul-claro);
-      color: var(--azul);
-      font-weight: bold;
-      text-align: center;
-      padding: 4px 6px;
-      border: 1px solid var(--borda);
-    }
-
-    .tab-materiais td {
-      height: 6.5mm;
-      min-height: 6.5mm;
-    }
-
-    .tab-materiais td.center { text-align: center; }
-    .tab-materiais td.right  { text-align: right;  }
-
-    .os-totais {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      border: 1px solid var(--borda);
-      border-top: none;
-    }
-
-    .os-totais .campo-total {
-      padding: 4px 8px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .os-totais .campo-total:first-child {
-      border-right: 1px solid var(--borda);
-    }
-
-    .os-totais .tl { font-weight: bold; color: var(--azul); }
-    .os-totais .tv { font-size: 13px; font-weight: bold; }
-
-    .os-garantia {
-      background: var(--azul-claro);
-      color: var(--azul);
-      font-weight: bold;
-      text-align: center;
-      padding: 5px;
-      border: 1px solid var(--borda);
-      border-top: none;
-      font-size: 11px;
-    }
-
-    .os-assinaturas {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      margin-top: 12mm;
-    }
-
-    .assinatura {
-      text-align: center;
-      padding: 0 20px;
-    }
-
-    .assinatura .linha {
-      border-top: 1px solid #555;
-      margin-bottom: 4px;
-    }
-
-    .assinatura .nome {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
       font-size: 10px;
-      color: #666;
+      color: #111;
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
 
-    .os-rodape {
-      text-align: center;
+    .page {
+      width: 210mm;
+      padding: 10mm 12mm 8mm;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    /* ── Header ────────────────────────────────── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #111;
+      margin-bottom: 8px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .company-logo {
+      max-width: 44px;
+      max-height: 44px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .company-name {
+      font-size: 15px;
+      font-weight: bold;
+      color: #111;
+      line-height: 1.2;
+    }
+
+    .company-details {
+      color: #777;
+      margin-top: 3px;
       font-size: 9px;
+      line-height: 1.5;
+    }
+
+    .header-right {
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .os-label {
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
       color: #aaa;
-      margin-top: 6mm;
+      margin-bottom: 1px;
     }
 
-    .fotos-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 6px;
-      border: 1px solid var(--borda);
-      border-top: none;
-      padding: 6px;
+    .os-number {
+      font-size: 20px;
+      font-weight: bold;
+      color: #111;
     }
 
-    .fotos-grid img {
-      width: 100%;
-      height: auto;
-      border: 1px solid var(--borda);
-      border-radius: 2px;
-    }
-
-    .foto-caption {
-      font-size: 9px;
-      color: #666;
-      text-align: center;
+    .os-date {
+      font-size: 8px;
+      color: #aaa;
       margin-top: 2px;
     }
 
-    .mt { margin-top: 3px; }
+    /* ── Badge ─────────────────────────────────── */
+    .doc-badge {
+      display: inline-block;
+      background: #111;
+      color: #fff;
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 3px;
+      margin-bottom: 8px;
+    }
+
+    /* ── Grid 2 colunas ─────────────────────────── */
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    /* ── Seções ─────────────────────────────────── */
+    .section {
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #888;
+      border-bottom: 1px solid #e5e5e5;
+      padding-bottom: 3px;
+      margin-bottom: 5px;
+    }
+
+    .info-row {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 3px;
+      line-height: 1.4;
+    }
+
+    .info-label {
+      min-width: 105px;
+      color: #777;
+      flex-shrink: 0;
+    }
+
+    .info-value {
+      font-weight: 500;
+      color: #111;
+      word-break: break-word;
+    }
+
+    /* ── Tabela equipamentos ─────────────────────── */
+    .eq-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9px;
+    }
+
+    .eq-table td {
+      border: 1px solid #e5e5e5;
+      padding: 3px 5px;
+      vertical-align: top;
+    }
+
+    .eq-table tr:nth-child(even) td {
+      background: #f8f8f8;
+    }
+
+    /* ── Observações ─────────────────────────────── */
+    .notes-text {
+      font-size: 10px;
+      line-height: 1.5;
+      color: #333;
+      white-space: pre-wrap;
+    }
+
+    /* ── Fotos ───────────────────────────────────── */
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+    }
+
+    .photo-item {
+      aspect-ratio: 1;
+      overflow: hidden;
+      border: 1px solid #e5e5e5;
+      border-radius: 2px;
+    }
+
+    .photo-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* ── Assinatura ──────────────────────────────── */
+    .signature-block {
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin-bottom: 7px;
+    }
+
+    .signature-title {
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    .confirmed-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3px;
+    }
+
+    .confirmed-legal {
+      margin-top: 5px;
+      font-size: 8px;
+      color: #aaa;
+      line-height: 1.5;
+    }
+
+    .pending-sig {
+      text-align: center;
+      padding: 10px;
+      color: #aaa;
+      border: 1px dashed #e5e5e5;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+
+    /* ── Rodapé regulatório ──────────────────────── */
+    .regulatory {
+      background: #f7f7f7;
+      border-radius: 3px;
+      padding: 5px 8px;
+      font-size: 8px;
+      color: #888;
+      line-height: 1.5;
+      margin-bottom: 7px;
+    }
+
+    /* ── Rodapé Ciclus ──────────────────────────── */
+    .ciclus-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid #e5e5e5;
+      padding-top: 5px;
+      font-size: 8px;
+      color: #bbb;
+    }
+
+    .hidden { display: none !important; }
 
     @media print {
       body { background: none; }
-      .os-page {
-        margin: 0;
-        box-shadow: none;
-        padding: 8mm 12mm;
-        width: 100%;
-      }
-      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page { margin: 0; padding: 8mm 10mm 6mm; }
     }
   </style>
 </head>
 <body>
+<div class="page">
 
-<div class="os-page" id="os-page">
-
-  <div class="os-titulo">ORDEM DE SERVIÇO Nº <span id="os-numero">0001</span></div>
-
-  <div class="os-header">
-    <div class="os-logo" id="area-logo">
-      <span>Logo da empresa</span>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div id="logo-area"></div>
+      <div>
+        <div class="company-name" id="company-name"></div>
+        <div class="company-details" id="company-details"></div>
+      </div>
     </div>
-    <div class="os-empresa">
-      <div class="empresa-nome" id="emp-nome">Empresa de Serviços Ltda.</div>
-      <div>CNPJ <span id="emp-cnpj">00.000.000/0001-00</span></div>
-      <div id="emp-endereco">Rua do Bom Atendimento, 100</div>
-      <div id="emp-cidade">São Paulo – SP</div>
-      <div>Tel. <span id="emp-tel">(11) 5555-5555</span></div>
-      <div id="emp-email">contato@empresa.com.br</div>
-    </div>
-  </div>
-
-  <table class="mt">
-    <tr>
-      <td class="label">Nº da Ordem de Serviço</td>
-      <td class="valor" colspan="3" id="td-numero">0001</td>
-    </tr>
-    <tr>
-      <td class="label">Data de solicitação</td>
-      <td class="valor" id="td-data-sol"></td>
-      <td class="label">Data de execução</td>
-      <td class="valor" id="td-data-exe"></td>
-    </tr>
-    <tr>
-      <td class="label">Horário de solicitação</td>
-      <td class="valor" id="td-hora-sol"></td>
-      <td class="label">Horário de execução</td>
-      <td class="valor" id="td-hora-exe"></td>
-    </tr>
-  </table>
-
-  <div class="secao mt">Solicitante</div>
-  <table>
-    <tr>
-      <td class="label">Nome do Cliente</td>
-      <td class="valor" id="cli-nome"></td>
-    </tr>
-    <tr>
-      <td class="label">CPF / CNPJ</td>
-      <td class="valor" id="cli-cpf"></td>
-    </tr>
-    <tr>
-      <td class="label">Endereço</td>
-      <td class="valor" id="cli-end"></td>
-    </tr>
-    <tr>
-      <td class="label">Bairro</td>
-      <td class="valor" id="cli-bairro"></td>
-    </tr>
-    <tr>
-      <td class="label">Cidade / Estado</td>
-      <td class="valor" id="cli-cidade"></td>
-    </tr>
-    <tr>
-      <td class="label">CEP</td>
-      <td class="valor" id="cli-cep"></td>
-    </tr>
-    <tr>
-      <td class="label">Telefone</td>
-      <td class="valor" id="cli-tel"></td>
-    </tr>
-    <tr>
-      <td class="label">E-mail</td>
-      <td class="valor" id="cli-email"></td>
-    </tr>
-  </table>
-
-  <div class="secao mt">Descrição do Serviço</div>
-  <div class="caixa-texto" id="os-descricao"></div>
-
-  <div class="secao mt">Materiais Utilizados</div>
-  <table class="tab-materiais">
-    <thead>
-      <tr>
-        <th style="width:40%">Tipo / Produto</th>
-        <th style="width:15%">Quantidade</th>
-        <th style="width:20%">Valor (R$)</th>
-        <th style="width:25%">Observações</th>
-      </tr>
-    </thead>
-    <tbody id="tb-materiais"></tbody>
-  </table>
-
-  <div class="secao mt">Observações Gerais</div>
-  <div class="caixa-texto menor" id="os-observacoes"></div>
-
-  <div class="secao mt">Fotos da Execução</div>
-  <div id="os-fotos"></div>
-
-  <div class="os-totais">
-    <div class="campo-total">
-      <span class="tl">Desconto:</span>
-      <span id="os-desconto"></span>
-    </div>
-    <div class="campo-total">
-      <span class="tl">Total:</span>
-      <span class="tv" id="os-total">R$ 0,00</span>
+    <div class="header-right">
+      <div class="os-label">Ordem de Serviço</div>
+      <div class="os-number" id="os-number"></div>
+      <div class="os-date" id="os-issued-date"></div>
     </div>
   </div>
 
-  <div class="os-garantia">
-    Este serviço possui garantia de <span id="os-garantia">90</span> dias após a execução.
+  <!-- Tipo de documento -->
+  <div class="doc-badge" id="doc-badge">Ordem de Serviço</div>
+
+  <!-- Grade de dados -->
+  <div class="grid-2col">
+    <div class="section">
+      <div class="section-title">Dados do Serviço</div>
+      <div class="info-row"><span class="info-label">Tipo</span><span class="info-value" id="sv-tipo"></span></div>
+      <div class="info-row"><span class="info-label">Data agendada</span><span class="info-value" id="sv-data-ag"></span></div>
+      <div class="info-row"><span class="info-label">Data de execução</span><span class="info-value" id="sv-data-exe"></span></div>
+      <div class="info-row"><span class="info-label">Horário de execução</span><span class="info-value" id="sv-hora-exe"></span></div>
+      <div class="info-row" id="sv-dur-row"><span class="info-label">Duração</span><span class="info-value" id="sv-duracao"></span></div>
+      <div class="info-row"><span class="info-label">Técnico responsável</span><span class="info-value" id="sv-tecnico"></span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Dados do Cliente</div>
+      <div class="info-row"><span class="info-label">Nome</span><span class="info-value" id="cl-nome"></span></div>
+      <div class="info-row hidden" id="cl-doc-row"><span class="info-label" id="cl-doc-label">CPF/CNPJ</span><span class="info-value" id="cl-doc"></span></div>
+      <div class="info-row hidden" id="cl-end-row"><span class="info-label">Endereço</span><span class="info-value" id="cl-end"></span></div>
+      <div class="info-row hidden" id="cl-tel-row"><span class="info-label">Telefone</span><span class="info-value" id="cl-tel"></span></div>
+      <div class="info-row hidden" id="cl-email-row"><span class="info-label">E-mail</span><span class="info-value" id="cl-email"></span></div>
+    </div>
   </div>
 
-  <div class="os-assinaturas">
-    <div class="assinatura">
-      <div class="linha"></div>
-      <div class="nome">Assinatura do Cliente</div>
+  <!-- Equipamentos -->
+  <div class="section hidden" id="section-equipment">
+    <div class="section-title" id="equipment-title">Equipamentos</div>
+    <div id="equipment-content"></div>
+  </div>
+
+  <!-- Observações do técnico -->
+  <div class="section hidden" id="section-notes">
+    <div class="section-title">Observações do Técnico</div>
+    <p class="notes-text" id="notes-text"></p>
+  </div>
+
+  <!-- Registro fotográfico -->
+  <div class="section hidden" id="section-photos">
+    <div class="section-title" id="photos-title">Registro Fotográfico</div>
+    <div class="photos-grid" id="photos-grid"></div>
+  </div>
+
+  <!-- Assinatura digital -->
+  <div class="signature-block">
+    <div class="signature-title">Assinatura Digital do Cliente</div>
+    <div id="signature-confirmed" class="hidden">
+      <div class="confirmed-grid" id="confirmed-meta"></div>
+      <p class="confirmed-legal">
+        Assinatura coletada eletronicamente. O IP de origem, data/hora e demais metadados foram
+        registrados com validade jurídica conforme MP 2.200-2/2001 e Lei 14.063/2020.
+      </p>
     </div>
-    <div class="assinatura">
-      <div class="linha"></div>
-      <div class="nome">Responsável: <span id="os-responsavel"></span></div>
+    <div id="signature-pending">
+      <div class="pending-sig">Aguardando assinatura digital do cliente</div>
     </div>
   </div>
 
-  <div class="os-rodape" id="os-rodape"></div>
+  <!-- Rodapé regulatório -->
+  <div class="regulatory hidden" id="section-regulatory"></div>
+
+  <!-- Rodapé Ciclus -->
+  <div class="ciclus-footer">
+    <span>Gerado pela plataforma Ciclus</span>
+    <span>ciclus.com.br · <span id="footer-date"></span></span>
+  </div>
 
 </div>
 
 <script>
+const TZ = 'America/Sao_Paulo';
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val ?? '—';
+}
+
+function showEl(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('hidden');
+}
+
+function hideEl(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('hidden');
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('pt-BR', { timeZone: TZ });
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', { timeZone: TZ })
+    + ' às '
+    + d.toLocaleTimeString('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDuration(min) {
+  if (!min) return '—';
+  if (min >= 60) {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return m > 0 ? h + 'h ' + m + 'min' : h + 'h';
+  }
+  return min + ' min';
+}
+
+function infoRow(label, value) {
+  return '<div class="info-row"><span class="info-label">' + label + '</span><span class="info-value">' + value + '</span></div>';
+}
+
 function configurarEmpresa(empresa) {
-  const set = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val || '—';
-  };
-  set('emp-nome',     empresa.nome);
-  set('emp-cnpj',     empresa.cnpj);
-  set('emp-endereco', empresa.endereco);
-  set('emp-cidade',   empresa.cidade_estado);
-  set('emp-tel',      empresa.telefone);
-  set('emp-email',    empresa.email);
+  setText('company-name', empresa.nome);
+
+  const parts = [];
+  if (empresa.cnpj) parts.push('CNPJ: ' + empresa.cnpj);
+  if (empresa.telefone) parts.push(empresa.telefone);
+  if (empresa.email) parts.push(empresa.email);
+  if (empresa.cidade_estado) parts.push(empresa.cidade_estado);
+  document.getElementById('company-details').textContent = parts.join(' · ');
 
   if (empresa.logo_url) {
-    const area = document.getElementById('area-logo');
-    area.innerHTML = `<img src="${empresa.logo_url}" alt="Logo">`;
+    const area = document.getElementById('logo-area');
+    const img = document.createElement('img');
+    img.src = empresa.logo_url;
+    img.className = 'company-logo';
+    img.alt = 'Logo';
+    img.onerror = function() { this.style.display = 'none'; };
+    area.appendChild(img);
   }
 }
 
 function preencherOS(dados) {
-  const set = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val ?? '';
-  };
+  const agora = new Date().toISOString();
 
-  set('os-numero',  dados.numero);
-  set('td-numero',  dados.numero);
+  setText('os-number', '#OS' + String(dados.numero).padStart(4, '0'));
+  setText('os-issued-date', 'Emitido em ' + fmtDate(agora));
+  setText('footer-date', fmtDate(agora));
 
-  set('td-data-sol', dados.data_solicitacao);
-  set('td-hora-sol', dados.horario_solicitacao);
-  set('td-data-exe', dados.data_execucao);
-  set('td-hora-exe', dados.horario_execucao);
+  if (dados.tipo_doc) setText('doc-badge', dados.tipo_doc);
 
-  const c = dados.cliente || {};
-  set('cli-nome',   c.nome);
-  set('cli-cpf',    c.cpf_cnpj);
-  set('cli-end',    c.endereco);
-  set('cli-bairro', c.bairro);
-  set('cli-cidade', c.cidade_estado);
-  set('cli-cep',    c.cep);
-  set('cli-tel',    c.telefone);
-  set('cli-email',  c.email);
+  // Dados do serviço
+  setText('sv-tipo', dados.tipo_servico);
+  setText('sv-data-ag', fmtDate(dados.data_agendada));
+  setText('sv-data-exe', fmtDate(dados.data_execucao));
+  setText('sv-hora-exe', fmtTime(dados.data_execucao));
 
-  set('os-descricao', dados.descricao_servico);
-
-  const tbody = document.getElementById('tb-materiais');
-  tbody.innerHTML = '';
-  const materiais = dados.materiais || [];
-  const minLinhas = Math.max(materiais.length, 7);
-  for (let i = 0; i < minLinhas; i++) {
-    const m   = materiais[i] || {};
-    const tr  = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${m.tipo        ?? ''}</td>
-      <td class="center">${m.quantidade ?? ''}</td>
-      <td class="right">${m.valor       ?? ''}</td>
-      <td>${m.observacoes ?? ''}</td>`;
-    tbody.appendChild(tr);
+  if (dados.duracao_minutos) {
+    setText('sv-duracao', fmtDuration(dados.duracao_minutos));
+  } else {
+    hideEl('sv-dur-row');
   }
 
-  set('os-observacoes', dados.observacoes_gerais);
-  set('os-desconto',    dados.desconto);
-  set('os-total',       dados.total ?? 'R$ 0,00');
-  set('os-garantia',    dados.garantia_dias ?? 90);
-  set('os-responsavel', dados.nome_responsavel);
+  setText('sv-tecnico', dados.tecnico || '—');
+
+  // Dados do cliente
+  setText('cl-nome', dados.cliente.nome);
+
+  if (dados.cliente.documento) {
+    setText('cl-doc-label', dados.cliente.tipo_doc || 'CPF/CNPJ');
+    setText('cl-doc', dados.cliente.documento);
+    showEl('cl-doc-row');
+  }
+
+  if (dados.cliente.endereco) {
+    setText('cl-end', dados.cliente.endereco);
+    showEl('cl-end-row');
+  }
+
+  if (dados.cliente.telefone) {
+    setText('cl-tel', dados.cliente.telefone);
+    showEl('cl-tel-row');
+  }
+
+  if (dados.cliente.email) {
+    setText('cl-email', dados.cliente.email);
+    showEl('cl-email-row');
+  }
+
+  // Equipamentos
+  const equip = dados.equipamentos || [];
+  if (equip.length > 0) {
+    const titleEl = document.getElementById('equipment-title');
+    if (titleEl && dados.equipment_label) titleEl.textContent = dados.equipment_label;
+
+    const container = document.getElementById('equipment-content');
+    if (dados.equipment_table) {
+      let html = '<table class="eq-table"><tbody>';
+      for (const eq of equip) {
+        html += '<tr>'
+          + '<td style="width:30%; font-weight:500">' + (eq.tipo || '—') + '</td>'
+          + '<td style="width:30%">' + (eq.marca_modelo || '—') + '</td>'
+          + '<td style="width:25%">' + (eq.localizacao || '—') + '</td>'
+          + '<td style="width:15%; color:#888">' + (eq.observacao || '') + '</td>'
+          + '</tr>';
+      }
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    } else {
+      container.innerHTML = '<p class="notes-text">'
+        + equip.map(function(e) { return e.localizacao || e.tipo; }).join(', ')
+        + '</p>';
+    }
+    showEl('section-equipment');
+  }
+
+  // Observações
+  if (dados.observacoes) {
+    document.getElementById('notes-text').textContent = dados.observacoes;
+    showEl('section-notes');
+  }
 
   // Fotos
-  const fotosContainer = document.getElementById('os-fotos');
   const fotos = dados.fotos || [];
   if (fotos.length > 0) {
-    let html = '<div class="fotos-grid">';
+    const titleEl = document.getElementById('photos-title');
+    if (titleEl) titleEl.textContent = 'Registro Fotográfico (' + fotos.length + ')';
+
+    const grid = document.getElementById('photos-grid');
+    let html = '';
     for (const f of fotos) {
-      html += '<div>';
-      html += `<img src="${f.url}" alt="${f.caption || 'Foto'}">`;
-      if (f.caption) html += `<div class="foto-caption">${f.caption}</div>`;
-      html += '</div>';
+      html += '<div class="photo-item">'
+        + '<img src="' + f.url + '" alt="Foto" loading="eager" onerror="this.parentElement.style.display=\'none\'">'
+        + '</div>';
     }
-    html += '</div>';
-    fotosContainer.innerHTML = html;
+    grid.innerHTML = html;
+    showEl('section-photos');
   }
 
-  const agora = new Date().toLocaleString('pt-BR');
-  set('os-rodape', `Emitido em ${agora}`);
+  // Assinatura
+  if (dados.confirmacao && dados.confirmacao.confirmado_em) {
+    const c = dados.confirmacao;
+    let html = infoRow('Confirmado por', c.nome || '—');
+    if (c.documento) html += infoRow(c.tipo_doc || 'CPF', c.documento);
+    html += infoRow('Data/hora', fmtDateTime(c.confirmado_em));
+    if (c.ip) html += infoRow('IP registrado', c.ip);
+
+    document.getElementById('confirmed-meta').innerHTML = html;
+    showEl('signature-confirmed');
+    hideEl('signature-pending');
+  }
+
+  // Rodapé regulatório
+  if (dados.rodape_regulatorio) {
+    const el = document.getElementById('section-regulatory');
+    if (el) {
+      el.textContent = dados.rodape_regulatorio;
+      showEl('section-regulatory');
+    }
+  }
 }
 </script>
-
 </body>
 </html>

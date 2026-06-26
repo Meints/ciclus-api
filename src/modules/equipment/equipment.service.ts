@@ -52,7 +52,7 @@ export async function create(
     capacity?: string;
     serialNumber?: string;
     location?: string;
-    installedAt?: string;
+    installationDate?: string;
     notes?: string;
   },
   userId: string,
@@ -69,7 +69,7 @@ export async function create(
       capacity: data.capacity ?? null,
       serialNumber: data.serialNumber ?? null,
       location: data.location ?? null,
-      installedAt: data.installedAt ? new Date(data.installedAt) : null,
+      installedAt: data.installationDate ? new Date(data.installationDate) : null,
       notes: data.notes ?? null,
     },
   });
@@ -126,7 +126,7 @@ export async function update(
     capacity?: string;
     serialNumber?: string;
     location?: string;
-    installedAt?: string;
+    installationDate?: string;
     notes?: string;
   },
   userId: string,
@@ -156,7 +156,7 @@ export async function update(
       ...(data.capacity !== undefined && { capacity: data.capacity }),
       ...(data.serialNumber !== undefined && { serialNumber: data.serialNumber }),
       ...(data.location !== undefined && { location: data.location }),
-      ...(data.installedAt !== undefined && { installedAt: new Date(data.installedAt) }),
+      ...(data.installationDate !== undefined && { installedAt: new Date(data.installationDate) }),
       ...(data.notes !== undefined && { notes: data.notes }),
     },
   });

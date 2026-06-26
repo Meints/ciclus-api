@@ -26,18 +26,6 @@ async function getBrowser(): Promise<Browser> {
   return browserInstance;
 }
 
-function formatDateBR(d: Date): string {
-  return d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-}
-
-function formatTimeBR(d: Date): string {
-  return d.toLocaleTimeString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 const SERVICE_TYPE_LABELS: Record<string, string> = {
   PREVENTIVE_MAINTENANCE: "Manutenção preventiva",
   CORRECTIVE_MAINTENANCE: "Manutenção corretiva",
@@ -66,100 +54,138 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   OTHER: "Outro",
 };
 
+const REPORT_CONFIG: Record<string, { title: string; equipmentLabel: string; showEquipmentTable: boolean; regulatoryFooter?: string }> = {
+  AIR_CONDITIONING: {
+    title: "Relatório de Manutenção — PMOC",
+    equipmentLabel: "Equipamentos Atendidos",
+    showEquipmentTable: true,
+    regulatoryFooter: "Documento elaborado em conformidade com a Portaria GM/MS nº 3.523/1998, que institui o Plano de Manutenção, Operação e Controle (PMOC) de sistemas de climatização.",
+  },
+  PEST_CONTROL: {
+    title: "Certificado de Dedetização",
+    equipmentLabel: "Áreas Tratadas",
+    showEquipmentTable: false,
+    regulatoryFooter: "Produtos utilizados registrados na ANVISA conforme legislação vigente. Procedimento realizado conforme RDC nº 52/2009.",
+  },
+  WATER_TANK: {
+    title: "Certificado de Limpeza de Caixa d'Água",
+    equipmentLabel: "Reservatórios Atendidos",
+    showEquipmentTable: true,
+    regulatoryFooter: "Procedimento realizado conforme Portaria de Consolidação nº 5/2017 (Anexo XX), que dispõe sobre o controle de qualidade da água para consumo humano.",
+  },
+  BUILDING_MAINTENANCE: {
+    title: "Relatório de Manutenção Predial",
+    equipmentLabel: "Itens Atendidos",
+    showEquipmentTable: true,
+  },
+  ELEVATOR: {
+    title: "Relatório de Manutenção de Elevadores",
+    equipmentLabel: "Equipamentos Atendidos",
+    showEquipmentTable: true,
+    regulatoryFooter: "Manutenção realizada em conformidade com a NBR 16083 (inspeção predial) e normas técnicas vigentes para equipamentos de transporte vertical.",
+  },
+  GENERAL: {
+    title: "Ordem de Serviço",
+    equipmentLabel: "Itens Atendidos",
+    showEquipmentTable: true,
+  },
+};
+
 function getServiceTypeLabel(value: string | null | undefined): string {
   if (!value) return "—";
   return SERVICE_TYPE_LABELS[value] ?? value;
 }
 
-function formatCurrency(value: number | null | undefined): string {
-  if (value == null) return "";
-  return `R$ ${value.toFixed(2).replace(".", ",")}`;
+function getReportConfig(niche?: string | null) {
+  if (!niche) return REPORT_CONFIG["GENERAL"]!;
+  return REPORT_CONFIG[niche] ?? REPORT_CONFIG["GENERAL"]!;
 }
 
-function getAddressPart(
-  addr: Record<string, unknown> | null | undefined,
-  key: string,
-): string {
+function getAddrPart(addr: Record<string, unknown> | null | undefined, key: string): string {
   if (!addr) return "";
   const v = addr[key];
   return v != null ? String(v) : "";
 }
 
+function buildAddress(addr: Record<string, unknown> | null | undefined): string {
+  if (!addr) return "";
+  const parts: string[] = [];
+  const street = getAddrPart(addr, "street");
+  const number = getAddrPart(addr, "number");
+  if (street) parts.push(number ? `${street}, ${number}` : street);
+  const neighborhood = getAddrPart(addr, "neighborhood");
+  if (neighborhood) parts.push(neighborhood);
+  const city = getAddrPart(addr, "city");
+  const state = getAddrPart(addr, "state");
+  if (city && state) parts.push(`${city}/${state}`);
+  else if (city) parts.push(city);
+  return parts.join(" — ");
+}
+
 export async function renderPdfFromHtml(data: ServiceReportData): Promise<Buffer> {
-  const templatePath = path.resolve(
-    __dirname,
-    "templates",
-    "service-report.html",
-  );
+  const templatePath = path.resolve(__dirname, "templates", "service-report.html");
   const html = await fs.readFile(templatePath, "utf-8");
 
   const browser = await getBrowser();
   const page = await browser.newPage();
 
-  await page.setContent(html, { waitUntil: "networkidle0" });
+  await page.setContent(html, { waitUntil: "domcontentloaded" });
 
-  const addr = data.customerAddress as Record<string, string> | null | undefined;
+  const config = getReportConfig(data.companyNiche);
   const compAddr = data.companyAddress as Record<string, string> | null | undefined;
+  const addr = data.customerAddress as Record<string, string> | null | undefined;
+
+  const companyCityState = compAddr
+    ? [getAddrPart(compAddr, "city"), getAddrPart(compAddr, "state")].filter(Boolean).join("/")
+    : "";
 
   const empresaData = {
     nome: data.companyName,
-    cnpj: data.companyDocument ?? "",
-    endereco: compAddr
-      ? `${getAddressPart(compAddr, "street")}, ${getAddressPart(compAddr, "number")}`
-      : "",
-    cidade_estado: compAddr
-      ? `${getAddressPart(compAddr, "city")} – ${getAddressPart(compAddr, "state")}`
-      : "",
-    telefone: data.companyPhone ?? "",
-    email: data.companyEmail ?? "",
-    logo_url: data.companyLogo ?? "",
+    cnpj: data.companyDocument ?? null,
+    telefone: data.companyPhone ?? null,
+    email: data.companyEmail ?? null,
+    cidade_estado: companyCityState || null,
+    logo_url: data.companyLogo ?? null,
   };
 
-  const scheduledAt = new Date(data.scheduledAt);
-  const createdAt = data.createdAt ? new Date(data.createdAt) : scheduledAt;
-
-  const materiais = data.equipment.map((eq) => ({
-    tipo: [eq.type, eq.brand, eq.model].filter(Boolean).join(" / "),
-    quantidade: "",
-    valor: "",
-    observacoes: eq.notes ?? "",
-  }));
-
-  const descricao = [
-    data.serviceType ? `Tipo de serviço: ${getServiceTypeLabel(data.serviceType)}` : "",
-    data.executionNotes ?? "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const execDate = data.completedDate ?? data.scheduledAt;
 
   const osData = {
-    numero: `OS Nº ${String(data.serviceNumber).padStart(4, "0")}`,
-    data_solicitacao: formatDateBR(createdAt),
-    horario_solicitacao: formatTimeBR(createdAt),
-    data_execucao: formatDateBR(scheduledAt),
-    horario_execucao: formatTimeBR(scheduledAt),
+    numero: data.serviceNumber,
+    tipo_doc: config.title,
+    tipo_servico: getServiceTypeLabel(data.serviceType),
+    data_agendada: data.scheduledAt instanceof Date ? data.scheduledAt.toISOString() : String(data.scheduledAt),
+    data_execucao: execDate instanceof Date ? execDate.toISOString() : String(execDate),
+    duracao_minutos: data.durationMinutes ?? null,
+    tecnico: data.technicianName ?? null,
     cliente: {
       nome: data.customerName,
-      cpf_cnpj: data.customerDocument ?? "",
-      endereco: addr
-        ? `${getAddressPart(addr, "street")}, ${getAddressPart(addr, "number")}`
-        : "",
-      bairro: getAddressPart(addr, "neighborhood"),
-      cidade_estado: addr
-        ? `${getAddressPart(addr, "city")} – ${getAddressPart(addr, "state")}`
-        : "",
-      cep: getAddressPart(addr, "zipCode"),
-      telefone: data.customerPhone ?? "",
-      email: data.customerEmail ?? "",
+      documento: data.customerDocument ?? null,
+      tipo_doc: data.customerDocumentType ?? "CPF",
+      endereco: buildAddress(addr),
+      telefone: data.customerPhone ?? null,
+      email: data.customerEmail ?? null,
     },
-    descricao_servico: descricao || "—",
-    materiais,
-    observacoes_gerais: data.notes ?? "",
-    desconto: "",
-    total: formatCurrency(data.amount),
-    garantia_dias: 90,
-    nome_responsavel: data.technicianName ?? "—",
-    fotos: (data.photos ?? []).map((f) => ({ url: f.url, caption: f.caption ?? "" })),
+    equipment_label: config.equipmentLabel,
+    equipment_table: config.showEquipmentTable,
+    equipamentos: data.equipment.map((eq) => ({
+      tipo: eq.type,
+      marca_modelo: [eq.brand, eq.model].filter(Boolean).join(" / ") || null,
+      localizacao: eq.location ?? null,
+      observacao: eq.notes ?? null,
+    })),
+    observacoes: data.executionNotes ?? null,
+    fotos: (data.photos ?? []).map((f) => ({ url: f.url })),
+    confirmacao: data.confirmedAt
+      ? {
+          confirmado_em: data.confirmedAt instanceof Date ? data.confirmedAt.toISOString() : String(data.confirmedAt),
+          nome: data.confirmedName ?? null,
+          documento: data.confirmedDocument ?? null,
+          tipo_doc: data.confirmedDocumentType ?? "CPF",
+          ip: data.confirmedIp ?? null,
+        }
+      : null,
+    rodape_regulatorio: config.regulatoryFooter ?? null,
   };
 
   await page.evaluate(
@@ -170,11 +196,25 @@ export async function renderPdfFromHtml(data: ServiceReportData): Promise<Buffer
     { empresa: empresaData, os: osData },
   );
 
-  await new Promise((r) => setTimeout(r, 200));
+  // Aguarda imagens carregarem antes de gerar o PDF
+  await page.evaluate(async () => {
+    const imgs = Array.from(document.querySelectorAll("img"));
+    if (imgs.length === 0) return;
+    await Promise.all(
+      imgs.map((img) =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise<void>((resolve) => {
+              img.addEventListener("load", () => resolve(), { once: true });
+              img.addEventListener("error", () => resolve(), { once: true });
+            }),
+      ),
+    );
+  });
 
   const pdfBuffer = await page.pdf({
     format: "A4",
-    margin: { top: "8mm", bottom: "8mm", left: "8mm", right: "8mm" },
+    margin: { top: "0mm", bottom: "0mm", left: "0mm", right: "0mm" },
     printBackground: true,
   });
 

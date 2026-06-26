@@ -1,6 +1,11 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import multipart from "@fastify/multipart";
+import staticFiles from "@fastify/static";
 import { env } from "./config/env";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { loggerConfig } from "./config/logger";
 import { AppError } from "./lib/app-error";
 import cookiePlugin from "./plugins/cookie";
@@ -68,6 +73,12 @@ export function buildApp() {
 
   app.register(multipart, {
     limits: { fileSize: 5 * 1024 * 1024 },
+  });
+
+  app.register(staticFiles, {
+    root: path.resolve(__dirname, "..", "uploads"),
+    prefix: "/uploads/",
+    decorateReply: false,
   });
 
   app.register(swaggerPlugin);
