@@ -160,23 +160,53 @@ export async function getExpiringContracts(companyId: string) {
   });
 }
 
-export async function getRecentActivity(companyId: string) {
-  const logs = await prisma.auditLog.findMany({
-    where: { companyId },
-    include: { user: { select: { name: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-  });
+export async function getRecentActivity(
+  companyId: string,
+  page = 1,
+  pageSize = 20,
+  filters: { userId?: string; action?: string; entityType?: string; dateFrom?: string; dateTo?: string } = {},
+) {
+  const skip = (page - 1) * pageSize;
 
-  return logs.map((log) => ({
-    id: log.id,
-    action: log.action,
-    entityType: log.entityType,
-    entityId: log.entityId,
-    userName: log.user?.name ?? null,
-    createdAt: log.createdAt,
-    description: buildDescription(log.action, log.entityType, log.entityId, log.user?.name),
-  }));
+  const where: Record<string, unknown> = { companyId };
+  if (filters.userId) where.userId = filters.userId;
+  if (filters.action) where.action = filters.action;
+  if (filters.entityType) where.entityType = filters.entityType;
+  if (filters.dateFrom || filters.dateTo) {
+    where.createdAt = {
+      ...(filters.dateFrom ? { gte: new Date(filters.dateFrom) } : {}),
+      ...(filters.dateTo ? { lte: new Date(new Date(filters.dateTo).setHours(23, 59, 59, 999)) } : {}),
+    };
+  }
+
+  const [logs, total] = await Promise.all([
+    prisma.auditLog.findMany({
+      where,
+      include: { user: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: pageSize,
+    }),
+    prisma.auditLog.count({ where }),
+  ]);
+
+  return {
+    data: logs.map((log) => ({
+      id: log.id,
+      action: log.action,
+      entityType: log.entityType,
+      entityId: log.entityId,
+      userName: log.user?.name ?? null,
+      createdAt: log.createdAt,
+      description: buildDescription(log.action, log.entityType, log.entityId, log.user?.name),
+    })),
+    meta: {
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    },
+  };
 }
 
 export async function getTechnicianStatus(companyId: string) {
@@ -261,17 +291,34 @@ export async function getMonthlyRevenue(companyId: string) {
   return result;
 }
 
+const ENTITY_LABELS: Record<string, string> = {
+  Service: "OS",
+  Customer: "Cliente",
+  Contract: "Contrato",
+  Employee: "Funcionário",
+  Equipment: "Equipamento",
+  Company: "Empresa",
+  User: "Usuário",
+};
+
+function entityLabel(entityType: string) {
+  return ENTITY_LABELS[entityType] ?? entityType;
+}
+
 function buildDescription(action: string, entityType: string, entityId: string, userName?: string): string {
+  const entity = entityLabel(entityType);
+  const user = userName ?? "Usuário";
+
   const mappings: Record<string, Record<string, string>> = {
-    LOGIN: { _default: `Usuário ${userName ?? "desconhecido"} fez login` },
-    LOGOUT: { _default: `Usuário ${userName ?? "desconhecido"} fez logout` },
+    LOGIN: { _default: `${user} fez login` },
+    LOGOUT: { _default: `${user} fez logout` },
     CREATE: {
-      Service: `OS #${entityId} foi criada`,
+      Service: `OS foi criada`,
       Customer: "Cliente foi criado",
       Contract: "Contrato foi criado",
       Employee: "Funcionário foi criado",
       Equipment: "Equipamento foi criado",
-      _default: `${entityType} foi criado`,
+      _default: `${entity} foi criado`,
     },
     UPDATE: {
       Customer: "Cliente foi atualizado",
@@ -279,23 +326,52 @@ function buildDescription(action: string, entityType: string, entityId: string, 
       Employee: "Funcionário foi atualizado",
       Equipment: "Equipamento foi atualizado",
       Company: "Empresa foi atualizada",
-      _default: `${entityType} foi atualizado`,
+      User: "Usuário foi atualizado",
+      _default: `${entity} foi atualizado`,
     },
-    DELETE: { _default: `${entityType} foi removido` },
-    START: { Service: `OS #${entityId} foi iniciada`, _default: `${entityType} foi iniciado` },
-    COMPLETE: { Service: `OS #${entityId} foi concluída`, _default: `${entityType} foi concluído` },
-    CONFIRM: { Service: `OS #${entityId} foi confirmada`, _default: `${entityType} foi confirmado` },
-    CANCEL: { Service: `OS #${entityId} foi cancelada`, _default: `${entityType} foi cancelado` },
-    RESCHEDULE: { Service: `OS #${entityId} foi reagendada`, _default: `${entityType} foi reagendado` },
-    CHANGE_PASSWORD: { _default: `${userName ?? "Usuário"} alterou a senha` },
+    DELETE: {
+      Service: "OS foi removida",
+      Customer: "Cliente foi removido",
+      Contract: "Contrato foi removido",
+      Employee: "Funcionário foi removido",
+      Equipment: "Equipamento foi removido",
+      _default: `${entity} foi removido`,
+    },
+    START: { Service: "OS foi iniciada", _default: `${entity} foi iniciado` },
+    COMPLETE: { Service: "OS foi concluída", _default: `${entity} foi concluído` },
+    CONFIRM: { Service: "OS foi confirmada pelo cliente", _default: `${entity} foi confirmado` },
+    CANCEL: {
+      Service: "OS foi cancelada",
+      Contract: "Contrato foi cancelado",
+      _default: `${entity} foi cancelado`,
+    },
+    RESCHEDULE: { Service: "OS foi reagendada", _default: `${entity} foi reagendado` },
+    REOPEN: { Service: "OS foi reaberta", _default: `${entity} foi reaberto` },
+    REVERT: { Service: "OS foi revertida para agendada", _default: `${entity} foi revertido` },
+    TOGGLE_PAID: { Service: "Pagamento da OS foi atualizado", _default: `Pagamento de ${entity} foi atualizado` },
+    PAUSE: { Contract: "Contrato foi pausado", _default: `${entity} foi pausado` },
+    RESUME: { Contract: "Contrato foi retomado", _default: `${entity} foi retomado` },
+    ACTIVATE: {
+      Customer: "Cliente foi ativado",
+      Employee: "Funcionário foi ativado",
+      Equipment: "Equipamento foi ativado",
+      User: "Usuário foi ativado",
+      _default: `${entity} foi ativado`,
+    },
+    DEACTIVATE: {
+      Customer: "Cliente foi desativado",
+      Employee: "Funcionário foi desativado",
+      Equipment: "Equipamento foi desativado",
+      User: "Usuário foi desativado",
+      _default: `${entity} foi desativado`,
+    },
+    CHANGE_PASSWORD: { _default: `${user} alterou a senha` },
     RESET_PASSWORD: { _default: "Senha foi redefinida" },
     CONSENT: { _default: "Consentimento de dados foi registrado" },
     UPLOAD_LOGO: { _default: "Logo da empresa foi atualizado" },
-    ACTIVATE: { _default: `${entityType} foi ativado` },
-    DEACTIVATE: { _default: `${entityType} foi desativado` },
   };
 
   const actionMap = mappings[action];
-  if (!actionMap) return `${action} em ${entityType}`;
-  return actionMap[entityType] ?? actionMap._default ?? `${action} em ${entityType}`;
+  if (!actionMap) return `${entity} foi atualizado`;
+  return actionMap[entityType] ?? actionMap._default ?? `${entity} foi atualizado`;
 }

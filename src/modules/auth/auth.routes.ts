@@ -46,5 +46,11 @@ export async function authRoutes(app: FastifyInstance) {
     authController.forgotPassword,
   );
 
-  app.post("/reset-password", authController.resetPassword);
+  app.post(
+    "/reset-password",
+    {
+      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
+    },
+    authController.resetPassword,
+  );
 }

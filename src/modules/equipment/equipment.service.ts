@@ -134,7 +134,7 @@ export async function update(
   await verifyCustomer(companyId, customerId);
 
   const equipment = await prisma.equipment.findFirst({
-    where: { id: equipmentId, companyId, customerId },
+    where: { id: equipmentId, companyId, customerId, deletedAt: null },
   });
 
   if (!equipment) {
@@ -182,7 +182,7 @@ export async function toggle(companyId: string, customerId: string, equipmentId:
   await verifyCustomer(companyId, customerId);
 
   const equipment = await prisma.equipment.findFirst({
-    where: { id: equipmentId, companyId, customerId },
+    where: { id: equipmentId, companyId, customerId, deletedAt: null },
   });
 
   if (!equipment) {
@@ -210,7 +210,7 @@ export async function remove(companyId: string, customerId: string, equipmentId:
   await verifyCustomer(companyId, customerId);
 
   const equipment = await prisma.equipment.findFirst({
-    where: { id: equipmentId, companyId, customerId },
+    where: { id: equipmentId, companyId, customerId, deletedAt: null },
   });
 
   if (!equipment) {

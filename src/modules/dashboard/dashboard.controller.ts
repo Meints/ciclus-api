@@ -23,8 +23,25 @@ export async function getExpiringContracts(request: FastifyRequest, reply: Fasti
 
 export async function getRecentActivity(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string };
-  const data = await dashboardService.getRecentActivity(user.companyId);
-  return reply.status(200).send({ data });
+  const query = request.query as {
+    page?: string;
+    pageSize?: string;
+    userId?: string;
+    action?: string;
+    entityType?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  };
+  const page = query.page ? Number(query.page) : 1;
+  const pageSize = query.pageSize ? Math.min(Number(query.pageSize), 100) : 20;
+  const result = await dashboardService.getRecentActivity(user.companyId, page, pageSize, {
+    userId: query.userId,
+    action: query.action,
+    entityType: query.entityType,
+    dateFrom: query.dateFrom,
+    dateTo: query.dateTo,
+  });
+  return reply.status(200).send(result);
 }
 
 export async function getTechnicianStatus(request: FastifyRequest, reply: FastifyReply) {

@@ -236,3 +236,51 @@ export async function cancel(companyId: string, contractId: string, data: { reas
 
   return result;
 }
+
+export async function pause(companyId: string, contractId: string, userId: string) {
+  const contract = await prisma.contract.findFirst({
+    where: { id: contractId, companyId, deletedAt: null },
+  });
+
+  if (!contract) throw new AppError("Contrato não encontrado", 404, "NOT_FOUND");
+  if (contract.status !== "ACTIVE") {
+    throw new AppError("Apenas contratos ativos podem ser pausados", 400, "INVALID_STATUS");
+  }
+
+  const updated = await prisma.contract.update({
+    where: { id: contractId },
+    data: { status: "PAUSED" },
+  });
+
+  await createAuditLog({
+    companyId, userId, entityType: "Contract", entityId: contractId, action: "PAUSE",
+    oldData: { status: "ACTIVE" } as Record<string, unknown>,
+    newData: { status: "PAUSED" } as Record<string, unknown>,
+  });
+
+  return updated;
+}
+
+export async function resume(companyId: string, contractId: string, userId: string) {
+  const contract = await prisma.contract.findFirst({
+    where: { id: contractId, companyId, deletedAt: null },
+  });
+
+  if (!contract) throw new AppError("Contrato não encontrado", 404, "NOT_FOUND");
+  if (contract.status !== "PAUSED") {
+    throw new AppError("Apenas contratos pausados podem ser retomados", 400, "INVALID_STATUS");
+  }
+
+  const updated = await prisma.contract.update({
+    where: { id: contractId },
+    data: { status: "ACTIVE" },
+  });
+
+  await createAuditLog({
+    companyId, userId, entityType: "Contract", entityId: contractId, action: "RESUME",
+    oldData: { status: "PAUSED" } as Record<string, unknown>,
+    newData: { status: "ACTIVE" } as Record<string, unknown>,
+  });
+
+  return updated;
+}

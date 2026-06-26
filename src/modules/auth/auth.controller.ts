@@ -114,15 +114,15 @@ export async function logout(request: FastifyRequest, reply: FastifyReply) {
   await authService.logout(user.sub, user.companyId);
 
   reply.clearCookie(COOKIE_NAME, { path: "/" });
-  reply.clearCookie("refresh_token", { path: "/" });
+  reply.clearCookie("refresh_token", { path: "/auth/refresh" });
 
   return reply.status(204).send();
 }
 
 export async function me(request: FastifyRequest, reply: FastifyReply) {
-  const user = request.user as { sub: string };
+  const jwtUser = request.user as { sub: string; impersonating?: boolean; originalUserId?: string };
   const fullUser = await prisma.user.findUnique({
-    where: { id: user.sub },
+    where: { id: jwtUser.sub },
     include: { company: true },
   });
 
@@ -130,7 +130,14 @@ export async function me(request: FastifyRequest, reply: FastifyReply) {
     return reply.status(404).send({ message: "Usuário não encontrado" });
   }
 
-  return reply.status(200).send({ data: mapUser(fullUser as never) });
+  const userData = mapUser(fullUser as never);
+  return reply.status(200).send({
+    data: {
+      ...userData,
+      impersonating: jwtUser.impersonating ?? false,
+      originalUserId: jwtUser.originalUserId ?? null,
+    },
+  });
 }
 
 export async function refresh(request: FastifyRequest, reply: FastifyReply) {

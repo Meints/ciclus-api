@@ -102,7 +102,7 @@ export async function getById(companyId: string, employeeId: string) {
 
 export async function update(companyId: string, employeeId: string, data: { name?: string; email?: string; phone?: string }) {
   const employee = await prisma.employee.findFirst({
-    where: { id: employeeId, companyId },
+    where: { id: employeeId, companyId, deletedAt: null },
   });
 
   if (!employee) {
@@ -134,7 +134,7 @@ export async function update(companyId: string, employeeId: string, data: { name
 
 export async function toggle(companyId: string, employeeId: string) {
   const employee = await prisma.employee.findFirst({
-    where: { id: employeeId, companyId },
+    where: { id: employeeId, companyId, deletedAt: null },
   });
 
   if (!employee) {

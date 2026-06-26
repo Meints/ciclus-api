@@ -2,11 +2,11 @@ import { prisma } from "../config/prisma";
 
 export async function expireContractsJob(): Promise<void> {
   const now = new Date();
-  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
   const { count: expired } = await prisma.contract.updateMany({
     where: {
-      status: "ACTIVE",
+      status: { in: ["ACTIVE", "ABOUT_TO_EXPIRE"] },
       endDate: { lt: now },
       deletedAt: null,
     },
@@ -16,7 +16,7 @@ export async function expireContractsJob(): Promise<void> {
   const { count: aboutToExpire } = await prisma.contract.updateMany({
     where: {
       status: "ACTIVE",
-      endDate: { gte: now, lte: sevenDaysFromNow },
+      endDate: { gte: now, lte: thirtyDaysFromNow },
       deletedAt: null,
     },
     data: { status: "ABOUT_TO_EXPIRE" },

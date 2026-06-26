@@ -85,7 +85,7 @@ export async function create(companyId: string, data: { name: string; email: str
 
 export async function getById(companyId: string, userId: string) {
   const user = await prisma.user.findFirst({
-    where: { id: userId, companyId },
+    where: { id: userId, companyId, deletedAt: null },
   });
 
   if (!user) {
@@ -97,7 +97,7 @@ export async function getById(companyId: string, userId: string) {
 
 export async function update(companyId: string, userId: string, data: { name?: string; role?: "ADMIN" | "TECHNICIAN" | "OWNER" }, currentUserRole: string) {
   const user = await prisma.user.findFirst({
-    where: { id: userId, companyId },
+    where: { id: userId, companyId, deletedAt: null },
   });
 
   if (!user) {
@@ -138,7 +138,7 @@ export async function toggle(companyId: string, userId: string, currentUserId: s
   }
 
   const user = await prisma.user.findFirst({
-    where: { id: userId, companyId },
+    where: { id: userId, companyId, deletedAt: null },
   });
 
   if (!user) {
@@ -179,7 +179,7 @@ export async function remove(companyId: string, userId: string, currentUserId: s
   }
 
   const user = await prisma.user.findFirst({
-    where: { id: userId, companyId },
+    where: { id: userId, companyId, deletedAt: null },
   });
 
   if (!user) {

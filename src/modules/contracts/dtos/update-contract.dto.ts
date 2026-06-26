@@ -8,7 +8,6 @@ export const updateContractSchema = z.object({
   amount: z.number().positive().optional(),
   employeeId: z.string().uuid().nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
-  status: z.enum(["ACTIVE", "ABOUT_TO_EXPIRE", "EXPIRED", "CANCELLED"]).optional(),
 }).strict();
 
 export type UpdateContractInput = z.infer<typeof updateContractSchema>;

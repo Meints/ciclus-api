@@ -1,3 +1,5 @@
+import bcrypt from "bcrypt";
+import crypto from "node:crypto";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../lib/app-error";
 
@@ -265,4 +267,114 @@ export async function generateImpersonationToken(
   });
   if (!owner) throw new AppError("Nenhum proprietário encontrado para esta empresa", 404, "NO_OWNER");
   return { userId: owner.id, companyId: owner.companyId, role: owner.role };
+}
+
+export async function getSuperadminById(userId: string) {
+  const user = await prisma.user.findFirst({
+    where: { id: userId, role: "SUPERADMIN", deletedAt: null },
+    select: { id: true, companyId: true },
+  });
+  if (!user) throw new AppError("Superadmin não encontrado", 404, "NOT_FOUND");
+  return user;
+}
+
+export async function createCompany(data: {
+  companyName: string;
+  ownerName: string;
+  ownerEmail: string;
+  niche?: string;
+  plan?: string;
+}) {
+  const existing = await prisma.user.findUnique({ where: { email: data.ownerEmail } });
+  if (existing) throw new AppError("E-mail já cadastrado", 409, "EMAIL_ALREADY_EXISTS");
+
+  const tempPassword = crypto.randomBytes(8).toString("hex");
+  const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+  const company = await prisma.company.create({
+    data: {
+      name: data.companyName,
+      niche: data.niche ?? null,
+      plan: (data.plan as any) ?? "FREE",
+    },
+  });
+
+  const user = await prisma.user.create({
+    data: {
+      name: data.ownerName,
+      email: data.ownerEmail,
+      passwordHash,
+      role: "OWNER",
+      companyId: company.id,
+    },
+    select: { id: true, name: true, email: true, role: true, createdAt: true },
+  });
+
+  return {
+    company: {
+      id: company.id,
+      name: company.name,
+      niche: company.niche,
+      plan: company.plan,
+      createdAt: company.createdAt.toISOString(),
+    },
+    owner: user,
+    tempPassword,
+  };
+}
+
+export async function toggleCompanyStatus(companyId: string) {
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  if (!company) throw new AppError("Empresa não encontrada", 404, "NOT_FOUND");
+
+  const updated = await prisma.company.update({
+    where: { id: companyId },
+    data: { isActive: !company.isActive },
+    select: { id: true, name: true, isActive: true },
+  });
+
+  return updated;
+}
+
+export async function listCompanyUsers(companyId: string) {
+  const company = await prisma.company.findUnique({ where: { id: companyId } });
+  if (!company) throw new AppError("Empresa não encontrada", 404, "NOT_FOUND");
+
+  const users = await prisma.user.findMany({
+    where: { companyId, deletedAt: null },
+    select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return users;
+}
+
+export async function removeCompanyUser(companyId: string, userId: string) {
+  const user = await prisma.user.findFirst({
+    where: { id: userId, companyId, deletedAt: null },
+  });
+  if (!user) throw new AppError("Usuário não encontrado", 404, "NOT_FOUND");
+  if (user.role === "OWNER") throw new AppError("Não é possível remover o proprietário da empresa", 400, "CANNOT_REMOVE_OWNER");
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { deletedAt: new Date() },
+  });
+}
+
+export async function updateCompanyUserRole(companyId: string, userId: string, role: string) {
+  const validRoles = ["ADMIN", "TECHNICIAN"];
+  if (!validRoles.includes(role)) throw new AppError("Role inválido. Use ADMIN ou TECHNICIAN", 400, "INVALID_ROLE");
+
+  const user = await prisma.user.findFirst({
+    where: { id: userId, companyId, deletedAt: null },
+  });
+  if (!user) throw new AppError("Usuário não encontrado", 404, "NOT_FOUND");
+  if (user.role === "OWNER") throw new AppError("Não é possível alterar o role do proprietário", 400, "CANNOT_CHANGE_OWNER_ROLE");
+
+  return prisma.user.update({
+    where: { id: userId },
+    data: { role: role as any },
+    select: { id: true, name: true, email: true, role: true },
+  });
 }

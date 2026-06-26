@@ -28,7 +28,7 @@ export async function ensureLogosBucket(): Promise<void> {
 
   await client.storage.createBucket(LOGOS_BUCKET, {
     public: true,
-    allowed_mime_types: ["image/jpeg", "image/png", "image/webp"],
+    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
   });
 }
 

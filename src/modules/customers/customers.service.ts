@@ -221,7 +221,7 @@ export async function update(
   const allowedFields = ["name", "fantasyName", "email", "phone", "address", "notes"];
 
   const customer = await prisma.customer.findFirst({
-    where: { id: customerId, companyId },
+    where: { id: customerId, companyId, deletedAt: null },
   });
 
   if (!customer) {
@@ -262,7 +262,7 @@ export async function update(
 
 export async function toggle(companyId: string, customerId: string) {
   const customer = await prisma.customer.findFirst({
-    where: { id: customerId, companyId },
+    where: { id: customerId, companyId, deletedAt: null },
   });
 
   if (!customer) {
@@ -288,7 +288,7 @@ export async function toggle(companyId: string, customerId: string) {
 
 export async function remove(companyId: string, customerId: string) {
   const customer = await prisma.customer.findFirst({
-    where: { id: customerId, companyId },
+    where: { id: customerId, companyId, deletedAt: null },
     include: {
       contracts: {
         where: { status: "ACTIVE", deletedAt: null },

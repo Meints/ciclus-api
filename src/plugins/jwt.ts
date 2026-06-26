@@ -9,6 +9,7 @@ declare module "@fastify/jwt" {
       companyId: string; // tenant
       role: "OWNER" | "ADMIN" | "TECHNICIAN" | "SUPERADMIN";
       impersonating?: boolean;
+      originalUserId?: string; // SUPERADMIN userId preserved during impersonation
     };
   }
 }

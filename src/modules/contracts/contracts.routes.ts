@@ -32,4 +32,16 @@ export async function contractsRoutes(app: FastifyInstance) {
     { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
     contractsController.cancel,
   );
+
+  app.patch(
+    "/:id/pause",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    contractsController.pause,
+  );
+
+  app.patch(
+    "/:id/resume",
+    { preHandler: [app.authenticate, authorize("OWNER", "ADMIN")] },
+    contractsController.resume,
+  );
 }

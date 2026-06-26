@@ -114,7 +114,12 @@ export async function resendConfirmation(request: FastifyRequest, reply: Fastify
 export async function previewReport(request: FastifyRequest, reply: FastifyReply) {
   const user = request.user as { companyId: string };
   const { id } = request.params as { id: string };
-  const body = request.body as { executionNotes?: string; durationMinutes?: number; equipmentNotes?: Array<{ equipmentId: string; note: string }> } | undefined;
+  const rawBody = request.body as Record<string, unknown> | undefined;
+  const body = rawBody ? {
+    executionNotes: typeof rawBody.executionNotes === "string" ? rawBody.executionNotes.slice(0, 2000) : undefined,
+    durationMinutes: typeof rawBody.durationMinutes === "number" ? rawBody.durationMinutes : undefined,
+    equipmentNotes: Array.isArray(rawBody.equipmentNotes) ? (rawBody.equipmentNotes as Array<{ equipmentId: string; note: string }>).slice(0, 50) : undefined,
+  } : undefined;
   const buffer = await servicesService.previewReport(user.companyId, id, body);
   return reply.header("Content-Type", "application/pdf").send(buffer);
 }

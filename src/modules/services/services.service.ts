@@ -6,6 +6,7 @@ import { parsePagination, buildSkip, buildMeta } from "../../utils/pagination";
 import { getNextServiceNumber } from "../../utils/service-number";
 import { parseDateOnly, parseDateTime } from "../../utils/date";
 import { generateServiceReport, generateServiceReportBuffer } from "../../integrations/pdf/pdf.service";
+import { validateImageMime } from "../../integrations/storage/storage.service";
 import { sendServiceConfirmationEmail } from "../../integrations/email/email.service";
 import { sendConfirmationWhatsApp } from "../../integrations/whatsapp/whatsapp.service";
 import { createNotification } from "../notifications/notifications.service";
@@ -722,14 +723,14 @@ export async function reschedule(companyId: string, serviceId: string, data: { s
     data: {
       scheduledAt: newDate,
       estimatedDurationMinutes,
-      status: "SCHEDULED",
+      status: "RESCHEDULED",
     },
   });
 
   await createAuditLog({
     companyId, entityType: "Service", entityId: serviceId, action: "RESCHEDULE",
     oldData: { scheduledAt: service.scheduledAt, status: service.status } as Record<string, unknown>,
-    newData: { scheduledAt: data.scheduledAt, status: "SCHEDULED" } as Record<string, unknown>,
+    newData: { scheduledAt: data.scheduledAt, status: "RESCHEDULED" } as Record<string, unknown>,
   });
 
   return updated;
@@ -738,6 +739,10 @@ export async function reschedule(companyId: string, serviceId: string, data: { s
 export async function resendConfirmation(companyId: string, serviceId: string) {
   const service = await prisma.service.findFirst({
     where: { id: serviceId, companyId, deletedAt: null },
+    include: {
+      customer: { select: { name: true, email: true, phone: true } },
+      company: { select: { name: true } },
+    },
   });
 
   if (!service) throw new AppError("Serviço não encontrado", 404, "NOT_FOUND");
@@ -747,11 +752,36 @@ export async function resendConfirmation(companyId: string, serviceId: string) {
 
   const newToken = crypto.randomUUID();
   const newExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const confirmationLink = `/confirmar/${newToken}`;
 
   const updated = await prisma.service.update({
     where: { id: serviceId },
     data: { confirmationToken: newToken, confirmationTokenExpiresAt: newExpiry },
   });
+
+  const companyName = service.company?.name ?? "Sua empresa";
+  const customer = service.customer;
+
+  if (customer?.email) {
+    sendServiceConfirmationEmail(customer.email, {
+      customerName: customer.name ?? "Cliente",
+      companyName,
+      serviceType: service.serviceType ?? "Serviço",
+      completedDate: new Date().toLocaleDateString("pt-BR"),
+      confirmationLink: `${env.FRONTEND_URL}${confirmationLink}`,
+      serviceNumber: service.serviceNumber,
+    }).catch(console.error);
+  }
+
+  if (customer?.phone) {
+    sendConfirmationWhatsApp(customer.phone, {
+      customerName: customer.name ?? "Cliente",
+      companyName,
+      confirmationLink,
+      serviceNumber: service.serviceNumber,
+      frontendUrl: env.FRONTEND_URL,
+    }).catch(console.error);
+  }
 
   return { ...updated, confirmationToken: newToken };
 }
@@ -855,7 +885,14 @@ export async function addPhotos(companyId: string, serviceId: string, files: any
 
   for (const file of files) {
     const buffer = await file.toBuffer();
-    const ext = path.extname(file.filename) || ".jpg";
+
+    const detectedType = validateImageMime(buffer);
+    if (!detectedType) {
+      throw new AppError("Tipo de arquivo inválido. Apenas imagens JPEG, PNG e WebP são aceitas.", 400, "INVALID_FILE_TYPE");
+    }
+
+    const extMap = { jpeg: ".jpg", png: ".png", webp: ".webp" } as const;
+    const ext = extMap[detectedType];
     const filename = `${crypto.randomUUID()}${ext}`;
     const filepath = path.join(uploadDir, filename);
 

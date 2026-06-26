@@ -56,3 +56,17 @@ export async function cancel(request: FastifyRequest, reply: FastifyReply) {
   const updated = await contractsService.cancel(user.companyId, id, body, user.sub);
   return reply.status(200).send({ data: updated });
 }
+
+export async function pause(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string; sub: string };
+  const { id } = request.params as { id: string };
+  const updated = await contractsService.pause(user.companyId, id, user.sub);
+  return reply.status(200).send({ data: updated });
+}
+
+export async function resume(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as { companyId: string; sub: string };
+  const { id } = request.params as { id: string };
+  const updated = await contractsService.resume(user.companyId, id, user.sub);
+  return reply.status(200).send({ data: updated });
+}
