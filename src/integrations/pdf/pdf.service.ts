@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs/promises";
 import puppeteer, { type Browser } from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import { uploadFile } from "../storage/storage.service";
 import { env } from "../../config/env";
 import type { ServiceReportData } from "./templates/service-report";
@@ -10,18 +11,23 @@ export type { ServiceReportData } from "./templates/service-report";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const CHROME_PATH =
-  env.CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-
 let browserInstance: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (browserInstance?.connected) return browserInstance;
   if (browserInstance) await browserInstance.close().catch(() => {});
+
+  const isDev = env.NODE_ENV !== "production";
+  const executablePath = isDev
+    ? env.CHROME_PATH
+    : await chromium.executablePath();
+
   browserInstance = await puppeteer.launch({
-    executablePath: CHROME_PATH,
+    executablePath,
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    args: isDev
+      ? ["--no-sandbox", "--disable-setuid-sandbox"]
+      : chromium.args,
   });
   return browserInstance;
 }
