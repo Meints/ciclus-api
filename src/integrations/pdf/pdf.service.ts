@@ -17,18 +17,17 @@ async function getBrowser(): Promise<Browser> {
   if (browserInstance?.connected) return browserInstance;
   if (browserInstance) await browserInstance.close().catch(() => {});
 
-  const isDev = env.NODE_ENV !== "production";
-  const executablePath = isDev
+  // CHROME_PATH definido → usa o Chrome/Chromium do sistema (dev ou VM Linux)
+  // Sem CHROME_PATH → usa @sparticuz/chromium (ambientes serverless x86_64)
+  const executablePath = env.CHROME_PATH
     ? env.CHROME_PATH
     : await chromium.executablePath();
 
-  browserInstance = await puppeteer.launch({
-    executablePath,
-    headless: true,
-    args: isDev
-      ? ["--no-sandbox", "--disable-setuid-sandbox"]
-      : chromium.args,
-  });
+  const args = env.CHROME_PATH
+    ? ["--no-sandbox", "--disable-setuid-sandbox"]
+    : chromium.args;
+
+  browserInstance = await puppeteer.launch({ executablePath, headless: true, args });
   return browserInstance;
 }
 
