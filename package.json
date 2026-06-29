@@ -6,7 +6,7 @@
   "scripts": {
     "prepare": "husky",
     "dev": "tsx watch src/server.ts",
-    "build": "prisma generate && tsup src/server.ts --format esm,cjs",
+    "build": "prisma generate && tsup src/server.ts --format cjs --shims",
     "start": "node dist/server.cjs",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
