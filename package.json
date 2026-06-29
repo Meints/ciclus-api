@@ -6,7 +6,7 @@
   "scripts": {
     "prepare": "husky",
     "dev": "tsx watch src/server.ts",
-    "build": "tsup src/server.ts --format esm,cjs",
+    "build": "prisma generate && tsup src/server.ts --format esm,cjs",
     "start": "node dist/server.js",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
@@ -40,6 +40,7 @@
     "@fastify/swagger-ui": "^6.0.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@sparticuz/chromium": "^149.0.0",
     "@supabase/supabase-js": "^2.108.2",
     "@t3-oss/env-core": "^0.13.11",
     "@types/node-cron": "^3.0.11",
