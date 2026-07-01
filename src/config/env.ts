@@ -52,7 +52,7 @@ export const env = createEnv({
 
     REFRESH_TOKEN_EXPIRES_IN: z.coerce.number().default(60 * 60 * 24 * 30), // 30 dias
 
-    CHROME_PATH: z.string().default("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"),
+    CHROME_PATH: z.string().optional(),
   },
 
   runtimeEnv: process.env,
