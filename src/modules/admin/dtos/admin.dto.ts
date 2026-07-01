@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const VALID_PLANS = ["FREE", "STARTER", "PRO", "BUSINESS"] as const;
-const VALID_NICHES = ["AIR_CONDITIONING", "REFRIGERATION", "ELEVATORS", "ELECTRICAL", "HYDRAULIC", "GENERIC"] as const;
+const VALID_NICHES = ["AIR_CONDITIONING", "PEST_CONTROL", "WATER_TANK", "BUILDING_MAINTENANCE", "ELEVATOR", "GENERAL"] as const;
 
 export const updateCompanyPlanSchema = z.object({
   plan: z.enum(VALID_PLANS, "Plano inválido"),
