@@ -31,7 +31,7 @@ import { lgpdRoutes } from "./modules/lgpd/lgpd.routes";
 import { adminRoutes } from "./modules/admin/admin.routes";
 
 export function buildApp() {
-  const app = Fastify({ logger: loggerConfig });
+  const app = Fastify({ logger: loggerConfig, trustProxy: true });
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof AppError) {
