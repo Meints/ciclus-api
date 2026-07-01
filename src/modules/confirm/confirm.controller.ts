@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import * as confirmService from "./confirm.service";
 import { confirmBodySchema } from "./confirm.schema";
+import { getClientIp } from "../../lib/client-ip";
 
 export async function getConfirmation(request: FastifyRequest, reply: FastifyReply) {
   const { token } = request.params as { token: string };
@@ -10,7 +11,7 @@ export async function getConfirmation(request: FastifyRequest, reply: FastifyRep
 
 export async function confirmServiceHandler(request: FastifyRequest, reply: FastifyReply) {
   const { token } = request.params as { token: string };
-  const ip = request.ip;
+  const ip = getClientIp(request);
   const userAgent = request.headers["user-agent"] ?? "";
   const { name, document, documentType } = confirmBodySchema.parse(request.body ?? {});
   const result = await confirmService.confirm(token, ip, userAgent, name, document, documentType);

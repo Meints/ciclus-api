@@ -1,6 +1,7 @@
 import fp from "fastify-plugin";
 import rateLimit from "@fastify/rate-limit";
 import { env } from "../config/env";
+import { getClientIp } from "../lib/client-ip";
 
 export default fp(async (app) => {
   await app.register(rateLimit, {
@@ -9,7 +10,7 @@ export default fp(async (app) => {
 
     keyGenerator: (request) => {
       const userId = (request.user as { sub?: string } | undefined)?.sub;
-      return userId ?? request.ip;
+      return userId ?? getClientIp(request);
     },
   });
 });
