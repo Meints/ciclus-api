@@ -2,7 +2,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs/promises";
 import puppeteer, { type Browser } from "puppeteer-core";
-import chromium from "@sparticuz/chromium";
 import { uploadFile } from "../storage/storage.service";
 import { env } from "../../config/env";
 import type { ServiceReportData } from "./templates/service-report";
@@ -19,13 +18,18 @@ async function getBrowser(): Promise<Browser> {
 
   // CHROME_PATH definido → usa o Chrome/Chromium do sistema (dev ou VM Linux)
   // Sem CHROME_PATH → usa @sparticuz/chromium (ambientes serverless x86_64)
-  const executablePath = env.CHROME_PATH
-    ? env.CHROME_PATH
-    : await chromium.executablePath();
-
-  const args = env.CHROME_PATH
-    ? ["--no-sandbox", "--disable-setuid-sandbox"]
-    : chromium.args;
+  // Import dinâmico: o pacote é ESM-only e um `import` estático quebra a
+  // interop de default export quando o tsup empacota o build em CJS.
+  let executablePath: string;
+  let args: string[];
+  if (env.CHROME_PATH) {
+    executablePath = env.CHROME_PATH;
+    args = ["--no-sandbox", "--disable-setuid-sandbox"];
+  } else {
+    const chromium = (await import("@sparticuz/chromium")).default;
+    executablePath = await chromium.executablePath();
+    args = chromium.args;
+  }
 
   browserInstance = await puppeteer.launch({ executablePath, headless: true, args });
   return browserInstance;
